@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace BlogLabRepository
+namespace BlogLab.Repository
 {
     public interface IAccountRepository
     {

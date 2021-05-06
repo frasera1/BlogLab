@@ -4,7 +4,7 @@ using System.Text;
 
 namespace BlogLab.Models.Blog
 {
-    class BlogPaging
+    public class BlogPaging
     {
         public int Page { get; set; } = 1;
 
