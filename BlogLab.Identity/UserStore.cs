@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace BlogLab.Identity
 {
-    class UserStore :
+    public class UserStore :
         IUserStore<ApplicationUserIdentity>,
         IUserEmailStore<ApplicationUserIdentity>,
         IUserPasswordStore<ApplicationUserIdentity>
