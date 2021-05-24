@@ -6,7 +6,6 @@ import { environment } from 'src/environments/environment';
 import { ApplicationUserCreate } from '../models/account/application-user-create.model';
 import { ApplicationUserLogin } from '../models/account/application-user-login.model';
 import { ApplicationUser } from '../models/account/application-user.model';
-import { stringify } from '@angular/compiler/src/util';
 
 @Injectable({
   providedIn: 'root'
@@ -26,7 +25,7 @@ export class AccountService {
       map((user : ApplicationUser) =>{
 
         if (user) {
-          localStorage.setItem('blogLab-currentUser', stringify(user))
+          localStorage.setItem('blogLab-currentUser', JSON.stringify(user))
           this.setCurrentUser(user)
         }
 
@@ -40,7 +39,7 @@ export class AccountService {
       map((user : ApplicationUser) =>{
 
         if (user) {
-          localStorage.setItem('blogLab-currentUser', stringify(user))
+          localStorage.setItem('blogLab-currentUser', JSON.stringify(user))
           this.setCurrentUser(user)
         }
 
@@ -55,6 +54,12 @@ export class AccountService {
 
   public get currentUserValue(): ApplicationUser {
     return this.currentUserSubject$.value
+  }
+
+  public isLoggedIn() {
+    const currentUser = this.currentUserValue
+    const isLoggedIn = currentUser && currentUser.token
+    return isLoggedIn
   }
 
   logout() {
