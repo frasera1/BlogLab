@@ -81,7 +81,7 @@ export class ErrorInterceptor implements HttpInterceptor {
     let errorMessage = 'Please login to your account.'
     this.accountService.logout()
     this.toastr.error(errorMessage, error.StatusText)
-    this.router.navigate([`/login`])
+    this.router.navigate(['/login'])
   }
 
   handle500Error(error: any) {
