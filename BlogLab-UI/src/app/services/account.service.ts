@@ -34,7 +34,7 @@ export class AccountService {
     )
   }
 
-  Register(model: ApplicationUserCreate) : Observable<ApplicationUser> {
+  register(model: ApplicationUserCreate) : Observable<ApplicationUser> {
     return this.http.post(`${environment.webApi}/Account/register`, model).pipe(
       map((user : ApplicationUser) =>{
 
