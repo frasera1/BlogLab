@@ -47,7 +47,7 @@ export class LoginComponent implements OnInit {
   }
 
   hasError(field: string, error: string) {
-    return this.loginForm.get(field).hasError(error)
+    return !!this.loginForm.get(field).hasError(error)
   }
 
   onSubmit() {

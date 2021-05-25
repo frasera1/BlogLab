@@ -2,13 +2,13 @@
     <div class="container">
         <a class="navbar-brand" routerLink='/' routerLinkActive='active'>BlogLab</a>
 
-    <button class="navbar-toggle"
+    <button class="navbar-toggler"
         data-toggle="collapse"
         data-target="#navbarNav"
         (click)="isCollapsed = !isCollapsed"
         [attr.aria-expanded]="!isCollapsed" aria-controls="collapseBasic">
 
-        <span class="navbar-toggle-icon"></span>
+        <span class="navbar-toggler-icon"></span>
 
     </button>
 
@@ -22,7 +22,7 @@
                 <a class="nav-link" routerLink="/login" routerLinkActive="active">Login</a>
             </li>
         </ul>
-            <div class="btn-group" dropdown *ngIf="!accountService.isLoggedIn()">
+            <div class="btn-group" dropdown *ngIf="accountService.isLoggedIn()">
                 <button
                     id="button-animated"
                     dropdownToggle
