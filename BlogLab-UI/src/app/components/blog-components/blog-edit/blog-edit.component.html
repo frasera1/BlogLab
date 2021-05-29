@@ -77,7 +77,8 @@
       Save
     </button>
 
-    <button class="btn btn-danger text-light" *ngIf="!!getPhoto(blogForm.get('photoId').value)">
+    <button class="btn btn-danger text-light" *ngIf="!!getPhoto(blogForm.get('photoId').value)"
+      (click)="detachPhoto()">
       Detach Photo
     </button>
 
