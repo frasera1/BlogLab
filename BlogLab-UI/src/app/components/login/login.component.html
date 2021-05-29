@@ -14,7 +14,7 @@
                     placeholder="Username">
 
                     <div *ngIf="hasError('username', 'required')" class="invalid-feedback">
-                        Username Required
+                        Username is Required
                     </div>
 
                     <div *ngIf="hasError('username', 'minlength') || hasError('username', 'maxlength')"
@@ -32,7 +32,7 @@
                     placeholder="Password">
 
                     <div *ngIf="hasError('password', 'required')" class="invalid-feedback">
-                        Password Required
+                        Password is Required
                     </div>
 
                     <div *ngIf="hasError('password', 'minlength') || hasError('password', 'maxlength')"
