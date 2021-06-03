@@ -34,7 +34,7 @@ export class BlogService {
   }
 
   getMostFamous() : Observable<Blog[]> {
-    return this.http.get<Blog[]>(`${environment.webApi}/BlogComment/famous`)
+    return this.http.get<Blog[]>(`${environment.webApi}/Blog/famous`)
   }
 
   delete(blogId: number) : Observable<number> {
