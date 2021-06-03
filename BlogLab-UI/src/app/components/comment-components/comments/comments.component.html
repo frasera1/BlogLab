@@ -33,7 +33,7 @@
             <button 
               *ngIf="(!comment.deleteConfirm && !!accountService.givenUserIsLoggedIn(comment.username))"
               class="btn btn-sm btn-danger"
-              (click)="replyComment(comment)">Delete</button>
+              (click)="showDeleteConfirm(comment)">Delete</button>
 
             <div *ngIf="!!comment.deleteConfirm">
               Sure?

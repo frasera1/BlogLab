@@ -25,7 +25,7 @@ export class CommentSystemComponent implements OnInit {
   ngOnInit(): void {
     this.blogCommentService.getAll(this.blogId).subscribe(blogComments => {
 
-      if (this.accountService.isLoggedIn) {
+      if (this.accountService.isLoggedIn()) {
         this.initComment(this.accountService.currentUserValue.username)
       }
 
