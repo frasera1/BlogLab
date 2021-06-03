@@ -1,11 +1,7 @@
 ﻿using BlogLab.Models.Account;
 using BlogLab.Services;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace BlogLab.Web.Controllers
@@ -41,6 +37,8 @@ namespace BlogLab.Web.Controllers
 
             if (result.Succeeded)
             {
+                applicationUserIdentity = await _userManager.FindByNameAsync(applicationUserCreate.Username);
+
                 ApplicationUser applicationUser = new ApplicationUser()
                 {
                     ApplicationUserId = applicationUserIdentity.ApplicationUserId,
