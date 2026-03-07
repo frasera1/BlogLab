@@ -1,0 +1,45 @@
+﻿-- Generated from AFMAIN\AFMAINSQL22 / BlogDB on 2026-03-06T20:38:48
+USE [BlogDB]
+GO
+
+-- Schemas
+
+/****** Object:  Schema [aggregate]    Script Date: 3/6/2026 8:39:56 PM ******/
+CREATE SCHEMA [aggregate]
+
+GO
+
+-- User-defined table types
+
+/****** Object:  UserDefinedTableType [dbo].[AccountType]    Script Date: 3/6/2026 8:39:57 PM ******/
+CREATE TYPE [dbo].[AccountType] AS TABLE(
+	[Username] [varchar](20) NOT NULL,
+	[NormalizedUsername] [varchar](20) NOT NULL,
+	[Email] [varchar](30) NOT NULL,
+	[NormalizedEmail] [varchar](30) NOT NULL,
+	[Fullname] [varchar](30) NULL,
+	[PasswordHash] [nvarchar](max) NOT NULL
+)
+
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[BlogCommentType]    Script Date: 3/6/2026 8:39:57 PM ******/
+CREATE TYPE [dbo].[BlogCommentType] AS TABLE(
+	[BlogCommentId] [int] NOT NULL,
+	[ParentBlogCommentId] [int] NULL,
+	[BlogId] [int] NOT NULL,
+	[Content] [varchar](300) NOT NULL
+)
+
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[BlogType]    Script Date: 3/6/2026 8:39:57 PM ******/
+CREATE TYPE [dbo].[BlogType] AS TABLE(
+	[BlogId] [int] NOT NULL,
+	[Title] [varchar](50) NOT NULL,
+	[Content] [varchar](max) NOT NULL,
+	[PhotoId] [int] NULL
+)
+
+GO
+

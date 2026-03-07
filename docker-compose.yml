@@ -1,4 +1,34 @@
 services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: bloglab-db
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${BLOGDB_SA_PASSWORD:-BlogLab!DevSa2026}
+    ports:
+      - "14333:1433"
+    volumes:
+      - bloglab-sqldata:/var/opt/mssql
+
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: bloglab-db-init
+    depends_on:
+      db:
+        condition: service_started
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${BLOGDB_SA_PASSWORD:-BlogLab!DevSa2026}
+      BLOGDB_APP_USER: ${BLOGDB_APP_USER:-bloguser}
+      BLOGDB_APP_PASSWORD: ${BLOGDB_APP_PASSWORD:-change-me}
+    volumes:
+      - ./docker/db/init:/usr/config/init:ro
+    entrypoint:
+      - /bin/bash
+      - /usr/config/init/init-db.sh
+    restart: "no"
+
   api:
     build:
       context: .
@@ -13,6 +43,10 @@ services:
       ASPNETCORE_URLS: http://0.0.0.0:5000
       DOTNET_USE_POLLING_FILE_WATCHER: "1"
       Jwt__Issuer: http://localhost:5000
+      ConnectionStrings__DefaultConnection: "Server=db,1433;Database=BlogDB;User Id=${BLOGDB_APP_USER:-bloguser};Password=${BLOGDB_APP_PASSWORD:-change-me};Persist Security Info=False;Pooling=False;MultipleActiveResultSets=False;Encrypt=False;TrustServerCertificate=True"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
     volumes:
       - .:/workspace
       - bloglab-nuget:/root/.nuget/packages
@@ -41,5 +75,6 @@ services:
       npm start -- --host 0.0.0.0 --port 4200 --poll 2000"
 
 volumes:
+  bloglab-sqldata:
   bloglab-nuget:
   bloglab-ui-node-modules:
