@@ -1,0 +1,12 @@
+.git
+.vs
+.vscode
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/.angular
+**/coverage
+**/TestResults
+**/*.user
+**/*.suo

@@ -411,3 +411,7 @@ testem.log
 # System Files
 .DS_Store
 Thumbs.db
+
+# Local environment overrides
+.env
+.env.local

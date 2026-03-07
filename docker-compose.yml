@@ -1,0 +1,45 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: BlogLab.Web/Dockerfile.dev
+    container_name: bloglab-api
+    working_dir: /workspace
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://0.0.0.0:5000
+      DOTNET_USE_POLLING_FILE_WATCHER: "1"
+      Jwt__Issuer: http://localhost:5000
+    volumes:
+      - .:/workspace
+      - bloglab-nuget:/root/.nuget/packages
+    ports:
+      - "5000:5000"
+    command: >
+      sh -c "dotnet restore BlogLab.sln &&
+      dotnet run --project BlogLab.Web --no-launch-profile --urls http://0.0.0.0:5000"
+
+  ui:
+    build:
+      context: ./BlogLab-UI
+      dockerfile: Dockerfile.dev
+    container_name: bloglab-ui
+    working_dir: /usr/src/app
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - ./BlogLab-UI:/usr/src/app
+      - bloglab-ui-node-modules:/usr/src/app/node_modules
+    ports:
+      - "4200:4200"
+    command: >
+      sh -c "if [ ! -d node_modules ] || [ -z \"$(ls -A node_modules 2>/dev/null)\" ]; then npm ci; fi &&
+      npm start -- --host 0.0.0.0 --port 4200 --poll 2000"
+
+volumes:
+  bloglab-nuget:
+  bloglab-ui-node-modules:
