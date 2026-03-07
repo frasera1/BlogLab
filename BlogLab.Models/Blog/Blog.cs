@@ -10,6 +10,10 @@ namespace BlogLab.Models.Blog
 
         public int ApplicationUserId { get; set; }
 
+        public int LikeCount { get; set; }
+
+        public bool LikedByCurrentUser { get; set; }
+
         public DateTime PublishDate { get; set; }
 
         public DateTime UpdateDate { get; set; }

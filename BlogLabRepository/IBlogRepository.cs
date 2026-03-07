@@ -6,17 +6,19 @@ using System.Threading.Tasks;
 
 namespace BlogLab.Repository
 {
-   public interface IBlogRepository
+    public interface IBlogRepository
     {
         public Task<Blog> UpsertAsync(BlogCreate blogCreate, int applicationUserId);
 
-        public Task<PagedResults<Blog>> GetAllAsync(BlogPaging blogPaging);
+        public Task<PagedResults<Blog>> GetAllAsync(BlogPaging blogPaging, int? currentApplicationUserId = null);
 
-        public Task<Blog> GetAsync(int blogId);
+        public Task<Blog> GetAsync(int blogId, int? currentApplicationUserId = null);
 
-        public Task<List<Blog>> GetAllFamousAsync();
+        public Task<List<Blog>> GetAllFamousAsync(int? currentApplicationUserId = null);
 
-        public Task<List<Blog>> GetAllByUserIdAsync(int applicationUserId);
+        public Task<List<Blog>> GetAllByUserIdAsync(int applicationUserId, int? currentApplicationUserId = null);
+
+        public Task<BlogLike> ToggleLikeAsync(int blogId, int applicationUserId);
 
         public Task<int> DeleteAsync(int blogId);
     }

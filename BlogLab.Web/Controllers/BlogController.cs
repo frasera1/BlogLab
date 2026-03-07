@@ -23,6 +23,18 @@ namespace BlogLab.Web.Controllers
             _photoRepository = photoRepository;
         }
 
+        private int? TryGetApplicationUserId()
+        {
+            var applicationUserIdClaim = User?.Claims?.FirstOrDefault(i => i.Type == JwtRegisteredClaimNames.NameId)?.Value;
+
+            if (int.TryParse(applicationUserIdClaim, out int applicationUserId))
+            {
+                return applicationUserId;
+            }
+
+            return null;
+        }
+
         [Authorize]
         [HttpPost]
         public async Task<ActionResult<Blog>> Create(BlogCreate blogCreate)
@@ -46,8 +58,9 @@ namespace BlogLab.Web.Controllers
         [HttpGet]
         public async Task<ActionResult<PagedResults<Blog>>> GetAll([FromQuery] BlogPaging blogPaging)
         {
+            int? currentApplicationUserId = TryGetApplicationUserId();
 
-            var blogs = await _blogRepository.GetAllAsync(blogPaging);
+            var blogs = await _blogRepository.GetAllAsync(blogPaging, currentApplicationUserId);
 
             return Ok(blogs);
         }
@@ -55,8 +68,9 @@ namespace BlogLab.Web.Controllers
         [HttpGet("{blogId}")]
         public async Task<ActionResult<PagedResults<Blog>>> Get(int blogId)
         {
+            int? currentApplicationUserId = TryGetApplicationUserId();
 
-            var blog = await _blogRepository.GetAsync(blogId);
+            var blog = await _blogRepository.GetAsync(blogId, currentApplicationUserId);
 
             return Ok(blog);
         }
@@ -64,8 +78,9 @@ namespace BlogLab.Web.Controllers
         [HttpGet("user/{applicationUserId}")]
         public async Task<ActionResult<List<Blog>>> GetByApplicationUserId(int applicationUserId)
         {
+            int? currentApplicationUserId = TryGetApplicationUserId();
 
-            var blogs = await _blogRepository.GetAllByUserIdAsync(applicationUserId);
+            var blogs = await _blogRepository.GetAllByUserIdAsync(applicationUserId, currentApplicationUserId);
 
             return Ok(blogs);
         }
@@ -73,10 +88,26 @@ namespace BlogLab.Web.Controllers
         [HttpGet("famous")]
         public async Task<ActionResult<List<Blog>>> GetAllFamous()
         {
+            int? currentApplicationUserId = TryGetApplicationUserId();
 
-            var blogs = await _blogRepository.GetAllFamousAsync();
+            var blogs = await _blogRepository.GetAllFamousAsync(currentApplicationUserId);
 
             return Ok(blogs);
+        }
+
+        [Authorize]
+        [HttpPost("{blogId}/like/toggle")]
+        public async Task<ActionResult<BlogLike>> ToggleLike(int blogId)
+        {
+            int applicationUserId = int.Parse(User.Claims.First(i => i.Type == JwtRegisteredClaimNames.NameId).Value);
+
+            var foundBlog = await _blogRepository.GetAsync(blogId, applicationUserId);
+
+            if (foundBlog == null) return BadRequest("Blog does not exist.");
+
+            var blogLike = await _blogRepository.ToggleLikeAsync(blogId, applicationUserId);
+
+            return Ok(blogLike);
         }
 
         [Authorize]
@@ -89,18 +120,18 @@ namespace BlogLab.Web.Controllers
 
             if (foundBlog == null) return BadRequest("Blog does not exist.");
 
-            
-                if (foundBlog.ApplicationUserId == applicationUserId)
-                {
-                    var affectedRows = await _blogRepository.DeleteAsync(blogId);
 
-                    return Ok(affectedRows);
-                }
-                else
-                {
-                    return BadRequest("You didn't create this blog.");
-                }
-            
+            if (foundBlog.ApplicationUserId == applicationUserId)
+            {
+                var affectedRows = await _blogRepository.DeleteAsync(blogId);
+
+                return Ok(affectedRows);
+            }
+            else
+            {
+                return BadRequest("You didn't create this blog.");
+            }
+
         }
     }
 }

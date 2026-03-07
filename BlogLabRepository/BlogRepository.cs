@@ -35,7 +35,7 @@ namespace BlogLab.Repository
             return affectedRows;
         }
 
-        public async Task<PagedResults<Blog>> GetAllAsync(BlogPaging blogPaging)
+        public async Task<PagedResults<Blog>> GetAllAsync(BlogPaging blogPaging, int? currentApplicationUserId = null)
         {
             var results = new PagedResults<Blog>();
 
@@ -47,9 +47,10 @@ namespace BlogLab.Repository
                     new
                     {
                         Offset = (blogPaging.Page - 1) * blogPaging.PageSize,
-                        PageSize = blogPaging.PageSize
+                        PageSize = blogPaging.PageSize,
+                        CurrentApplicationUserId = currentApplicationUserId
                     },
-                    commandType: CommandType.StoredProcedure)) 
+                    commandType: CommandType.StoredProcedure))
                 {
                     results.Items = multi.Read<Blog>();
                     results.TotalCount = multi.ReadFirst<int>();
@@ -58,7 +59,7 @@ namespace BlogLab.Repository
             return results;
         }
 
-        public async Task<List<Blog>> GetAllByUserIdAsync(int applicationUserId)
+        public async Task<List<Blog>> GetAllByUserIdAsync(int applicationUserId, int? currentApplicationUserId = null)
         {
             IEnumerable<Blog> blogs;
 
@@ -68,7 +69,11 @@ namespace BlogLab.Repository
 
                 blogs = await connection.QueryAsync<Blog>(
                     "Blog_GetByUserId",
-                    new { ApplicationUserId = applicationUserId },
+                    new
+                    {
+                        ApplicationUserId = applicationUserId,
+                        CurrentApplicationUserId = currentApplicationUserId
+                    },
                     commandType: CommandType.StoredProcedure);
 
             }
@@ -76,7 +81,7 @@ namespace BlogLab.Repository
             return blogs.ToList();
         }
 
-        public async Task<List<Blog>> GetAllFamousAsync()
+        public async Task<List<Blog>> GetAllFamousAsync(int? currentApplicationUserId = null)
         {
             IEnumerable<Blog> famousBlogs;
 
@@ -86,7 +91,7 @@ namespace BlogLab.Repository
 
                 famousBlogs = await connection.QueryAsync<Blog>(
                     "Blog_GetAllFamous",
-                    new {  },
+                    new { CurrentApplicationUserId = currentApplicationUserId },
                     commandType: CommandType.StoredProcedure);
 
             }
@@ -94,7 +99,7 @@ namespace BlogLab.Repository
             return famousBlogs.ToList();
         }
 
-        public async Task<Blog> GetAsync(int blogId)
+        public async Task<Blog> GetAsync(int blogId, int? currentApplicationUserId = null)
         {
             Blog blog;
 
@@ -104,11 +109,36 @@ namespace BlogLab.Repository
 
                 blog = await connection.QueryFirstOrDefaultAsync<Blog>(
                     "Blog_Get",
-                    new { BlogId = blogId },
+                    new
+                    {
+                        BlogId = blogId,
+                        CurrentApplicationUserId = currentApplicationUserId
+                    },
                     commandType: CommandType.StoredProcedure);
             }
 
             return blog;
+        }
+
+        public async Task<BlogLike> ToggleLikeAsync(int blogId, int applicationUserId)
+        {
+            BlogLike blogLike;
+
+            using (var connection = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
+            {
+                await connection.OpenAsync();
+
+                blogLike = await connection.QueryFirstOrDefaultAsync<BlogLike>(
+                    "BlogLike_Toggle",
+                    new
+                    {
+                        BlogId = blogId,
+                        ApplicationUserId = applicationUserId
+                    },
+                    commandType: CommandType.StoredProcedure);
+            }
+
+            return blogLike;
         }
 
         public async Task<Blog> UpsertAsync(BlogCreate blogCreate, int applicationUserId)

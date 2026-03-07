@@ -184,6 +184,41 @@ REFERENCES [dbo].[Blog] ([BlogId])
 
 GO
 
+/****** Object:  Table [dbo].[BlogLike]    Script Date: 3/7/2026 12:00:00 AM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[BlogLike](
+	[BlogLikeId] [int] IDENTITY(1,1) NOT NULL,
+	[BlogId] [int] NOT NULL,
+	[ApplicationUserId] [int] NOT NULL,
+	[PublishDate] [datetime] NOT NULL,
+	[UpdateDate] [datetime] NOT NULL,
+	[ActiveInd] [bit] NOT NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[BlogLikeId] ASC
+),
+	CONSTRAINT [UQ_BlogLike_BlogId_ApplicationUserId] UNIQUE NONCLUSTERED 
+	(
+		[BlogId] ASC,
+		[ApplicationUserId] ASC
+	)
+) ON [PRIMARY]
+
+ALTER TABLE [dbo].[BlogLike] ADD  DEFAULT (getdate()) FOR [PublishDate]
+ALTER TABLE [dbo].[BlogLike] ADD  DEFAULT (getdate()) FOR [UpdateDate]
+ALTER TABLE [dbo].[BlogLike] ADD  DEFAULT (CONVERT([bit],(1))) FOR [ActiveInd]
+ALTER TABLE [dbo].[BlogLike]  WITH CHECK ADD FOREIGN KEY([ApplicationUserId])
+REFERENCES [dbo].[ApplicationUser] ([ApplicationUserId])
+ALTER TABLE [dbo].[BlogLike]  WITH CHECK ADD FOREIGN KEY([BlogId])
+REFERENCES [dbo].[Blog] ([BlogId])
+
+GO
+
 -- Views
 
 /****** Object:  View [aggregate].[Blog]    Script Date: 3/6/2026 8:56:00 PM ******/
@@ -315,6 +350,13 @@ CREATE PROCEDURE [dbo].[Blog_Delete]
 	@BlogId INT
 AS
 
+	UPDATE [dbo].[BlogLike]
+	SET
+		[ActiveInd] = CONVERT(BIT, 0),
+		[UpdateDate] = GETDATE()
+	WHERE
+		[BlogId] = @BlogId;
+
 	UPDATE [dbo].[BlogComment]
 	SET 
 		[ActiveInd] = CONVERT(BIT, 0),
@@ -342,19 +384,38 @@ GO
 
 
 CREATE PROCEDURE [dbo].[Blog_Get]
-	@BlogId INT
+	@BlogId INT,
+	@CurrentApplicationUserId INT = NULL
 AS
 	SELECT 
-		[BlogId]
-	   ,[ApplicationUserId]
-       ,[Username]
-       ,[Title]
-       ,[Content]
-       ,[PhotoId]
-       ,[PublishDate]
-       ,[UpdateDate]
+		t1.[BlogId]
+	   ,t1.[ApplicationUserId]
+	       ,t1.[Username]
+	       ,t1.[Title]
+	       ,t1.[Content]
+	       ,t1.[PhotoId]
+	       ,ISNULL(t2.[LikeCount], 0) [LikeCount]
+	       ,CASE WHEN t3.[BlogLikeId] IS NULL THEN CONVERT(BIT, 0) ELSE CONVERT(BIT, 1) END [LikedByCurrentUser]
+	       ,t1.[PublishDate]
+	       ,t1.[UpdateDate]
 	 FROM
 		[aggregate].[Blog] t1
+	LEFT JOIN
+		(
+			SELECT
+				[BlogId],
+				COUNT(*) [LikeCount]
+			FROM
+				[dbo].[BlogLike]
+			WHERE
+				[ActiveInd] = CONVERT(BIT, 1)
+			GROUP BY
+				[BlogId]
+		) t2 ON t1.[BlogId] = t2.[BlogId]
+	LEFT JOIN
+		[dbo].[BlogLike] t3 ON t1.[BlogId] = t3.[BlogId]
+			AND t3.[ApplicationUserId] = @CurrentApplicationUserId
+			AND t3.[ActiveInd] = CONVERT(BIT, 1)
 	 WHERE
 		t1.[BlogId] = @BlogId AND
 		t1.ActiveInd = CONVERT(BIT, 1)
@@ -372,19 +433,38 @@ GO
 
 CREATE PROCEDURE [dbo].[Blog_GetAll]
 	@Offset INT,
-	@PageSize INT
+	@PageSize INT,
+	@CurrentApplicationUserId INT = NULL
 AS
 	SELECT 
-		[BlogId]
-	   ,[ApplicationUserId]
-       ,[Username]
-       ,[Title]
-       ,[Content]
-       ,[PhotoId]
-       ,[PublishDate]
-       ,[UpdateDate]
+		t1.[BlogId]
+	   ,t1.[ApplicationUserId]
+	       ,t1.[Username]
+	       ,t1.[Title]
+	       ,t1.[Content]
+	       ,t1.[PhotoId]
+	       ,ISNULL(t2.[LikeCount], 0) [LikeCount]
+	       ,CASE WHEN t3.[BlogLikeId] IS NULL THEN CONVERT(BIT, 0) ELSE CONVERT(BIT, 1) END [LikedByCurrentUser]
+	       ,t1.[PublishDate]
+	       ,t1.[UpdateDate]
 	 FROM
 		[aggregate].[Blog] t1
+	LEFT JOIN
+		(
+			SELECT
+				[BlogId],
+				COUNT(*) [LikeCount]
+			FROM
+				[dbo].[BlogLike]
+			WHERE
+				[ActiveInd] = CONVERT(BIT, 1)
+			GROUP BY
+				[BlogId]
+		) t2 ON t1.[BlogId] = t2.[BlogId]
+	LEFT JOIN
+		[dbo].[BlogLike] t3 ON t1.[BlogId] = t3.[BlogId]
+			AND t3.[ApplicationUserId] = @CurrentApplicationUserId
+			AND t3.[ActiveInd] = CONVERT(BIT, 1)
 	 WHERE
 		t1.[ActiveInd] = CONVERT(BIT, 1)
 	 ORDER BY
@@ -406,6 +486,7 @@ GO
 
 
 CREATE PROCEDURE [dbo].[Blog_GetAllFamous]
+	@CurrentApplicationUserId INT = NULL
 AS
 
 	SELECT 
@@ -416,12 +497,30 @@ AS
 		,t1.[PhotoId]
 		,t1.[Title]
 		,t1.[Content]
+			,ISNULL(t3.[LikeCount], 0) [LikeCount]
+			,CONVERT(BIT, MAX(CASE WHEN t4.[BlogLikeId] IS NULL THEN 0 ELSE 1 END)) [LikedByCurrentUser]
 		,t1.[PublishDate]
 		,t1.[UpdateDate]
 	FROM 
 		[aggregate].[Blog] t1
 	INNER JOIN
 		[dbo].[BlogComment] t2 ON t1.BlogId = t2.BlogId
+		LEFT JOIN
+			(
+				SELECT
+					[BlogId],
+					COUNT(*) [LikeCount]
+				FROM
+					[dbo].[BlogLike]
+				WHERE
+					[ActiveInd] = CONVERT(BIT, 1)
+				GROUP BY
+					[BlogId]
+			) t3 ON t1.[BlogId] = t3.[BlogId]
+		LEFT JOIN
+			[dbo].[BlogLike] t4 ON t1.[BlogId] = t4.[BlogId]
+				AND t4.[ApplicationUserId] = @CurrentApplicationUserId
+				AND t4.[ActiveInd] = CONVERT(BIT, 1)
 	WHERE
 		t1.[ActiveInd] = CONVERT(BIT, 1) AND
 		t2.[ActiveInd] = CONVERT(BIT, 1)
@@ -432,6 +531,7 @@ AS
 	   ,t1.[PhotoId]
 	   ,t1.[Title]
 	   ,t1.[Content]
+		   ,ISNULL(t3.[LikeCount], 0)
 	   ,t1.[PublishDate]
 	   ,t1.[UpdateDate]
 	ORDER BY
@@ -450,22 +550,91 @@ GO
 
 
 CREATE PROCEDURE [dbo].[Blog_GetByUserId]
-	@ApplicationUserId INT
+	@ApplicationUserId INT,
+	@CurrentApplicationUserId INT = NULL
 AS
 	SELECT 
-		[BlogId]
-	   ,[ApplicationUserId]
-       ,[Username]
-       ,[Title]
-       ,[Content]
-       ,[PhotoId]
-       ,[PublishDate]
-       ,[UpdateDate]
+		t1.[BlogId]
+	   ,t1.[ApplicationUserId]
+	       ,t1.[Username]
+	       ,t1.[Title]
+	       ,t1.[Content]
+	       ,t1.[PhotoId]
+	       ,ISNULL(t2.[LikeCount], 0) [LikeCount]
+	       ,CASE WHEN t3.[BlogLikeId] IS NULL THEN CONVERT(BIT, 0) ELSE CONVERT(BIT, 1) END [LikedByCurrentUser]
+	       ,t1.[PublishDate]
+	       ,t1.[UpdateDate]
 	 FROM
 		[aggregate].[Blog] t1
+	LEFT JOIN
+		(
+			SELECT
+				[BlogId],
+				COUNT(*) [LikeCount]
+			FROM
+				[dbo].[BlogLike]
+			WHERE
+				[ActiveInd] = CONVERT(BIT, 1)
+			GROUP BY
+				[BlogId]
+		) t2 ON t1.[BlogId] = t2.[BlogId]
+	LEFT JOIN
+		[dbo].[BlogLike] t3 ON t1.[BlogId] = t3.[BlogId]
+			AND t3.[ApplicationUserId] = @CurrentApplicationUserId
+			AND t3.[ActiveInd] = CONVERT(BIT, 1)
 	 WHERE
 		t1.[ApplicationUserId] = @ApplicationUserId AND
 		t1.[ActiveInd] = CONVERT(BIT, 1)
+
+
+GO
+
+/****** Object:  StoredProcedure [dbo].[BlogLike_Toggle]    Script Date: 3/7/2026 12:00:00 AM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+CREATE PROCEDURE [dbo].[BlogLike_Toggle]
+	@BlogId INT,
+	@ApplicationUserId INT
+AS
+
+	MERGE INTO [dbo].[BlogLike] TARGET
+	USING (
+		SELECT
+			@BlogId [BlogId],
+			@ApplicationUserId [ApplicationUserId]
+	) AS SOURCE
+	ON
+	(
+		TARGET.[BlogId] = SOURCE.[BlogId] AND TARGET.[ApplicationUserId] = SOURCE.[ApplicationUserId]
+	)
+	WHEN MATCHED THEN
+		UPDATE SET
+			TARGET.[ActiveInd] = CASE WHEN TARGET.[ActiveInd] = CONVERT(BIT, 1) THEN CONVERT(BIT, 0) ELSE CONVERT(BIT, 1) END,
+			TARGET.[UpdateDate] = GETDATE()
+	WHEN NOT MATCHED BY TARGET THEN
+		INSERT (
+			[BlogId],
+			[ApplicationUserId]
+		)
+		VALUES (
+			SOURCE.[BlogId],
+			SOURCE.[ApplicationUserId]
+		);
+
+	SELECT
+		@BlogId [BlogId],
+		COUNT(*) [LikeCount],
+		CONVERT(BIT, ISNULL(MAX(CASE WHEN [ApplicationUserId] = @ApplicationUserId THEN 1 ELSE 0 END), 0)) [LikedByCurrentUser]
+	FROM
+		[dbo].[BlogLike]
+	WHERE
+		[BlogId] = @BlogId AND
+		[ActiveInd] = CONVERT(BIT, 1);
 
 
 GO
