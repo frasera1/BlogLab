@@ -30,7 +30,8 @@ namespace BlogLab.Web.Controllers
             {
                 Username = applicationUserCreate.Username,
                 Email = applicationUserCreate.Email,
-                Fullname = applicationUserCreate.Fullname
+                Fullname = applicationUserCreate.Fullname,
+                IsAdmin = false
             };
 
             var result = await _userManager.CreateAsync(applicationUserIdentity, applicationUserCreate.Password);
@@ -39,15 +40,7 @@ namespace BlogLab.Web.Controllers
             {
                 applicationUserIdentity = await _userManager.FindByNameAsync(applicationUserCreate.Username);
 
-                ApplicationUser applicationUser = new ApplicationUser()
-                {
-                    ApplicationUserId = applicationUserIdentity.ApplicationUserId,
-                    Username = applicationUserIdentity.Username,
-                    Email = applicationUserIdentity.Email,
-                    Fullname = applicationUserIdentity.Fullname,
-                    Token = _tokenService.CreateToken(applicationUserIdentity)
-                };
-                return Ok(applicationUser);
+                return Ok(CreateApplicationUser(applicationUserIdentity));
             }
 
             return BadRequest(result.Errors);
@@ -65,19 +58,24 @@ namespace BlogLab.Web.Controllers
 
                 if (result.Succeeded)
                 {
-                    ApplicationUser applicationUser = new ApplicationUser()
-                    {
-                        ApplicationUserId = applicationUserIdentity.ApplicationUserId,
-                        Username = applicationUserIdentity.Username,
-                        Email = applicationUserIdentity.Email,
-                        Fullname = applicationUserIdentity.Fullname,
-                        Token = _tokenService.CreateToken(applicationUserIdentity)
-                    };
-                    return Ok(applicationUser);
+                    return Ok(CreateApplicationUser(applicationUserIdentity));
                 }
             }
 
             return BadRequest("Invalid login attempt.");
+        }
+
+        private ApplicationUser CreateApplicationUser(ApplicationUserIdentity applicationUserIdentity)
+        {
+            return new ApplicationUser
+            {
+                ApplicationUserId = applicationUserIdentity.ApplicationUserId,
+                Username = applicationUserIdentity.Username,
+                Email = applicationUserIdentity.Email,
+                Fullname = applicationUserIdentity.Fullname,
+                IsAdmin = applicationUserIdentity.IsAdmin,
+                Token = _tokenService.CreateToken(applicationUserIdentity)
+            };
         }
     }
 }

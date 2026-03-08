@@ -31,6 +31,7 @@ namespace BlogLab.Repository
             dataTable.Columns.Add("NormalizedEmail", typeof(string));
             dataTable.Columns.Add("Fullname", typeof(string));
             dataTable.Columns.Add("PasswordHash", typeof(string));
+            dataTable.Columns.Add("IsAdmin", typeof(bool));
 
             dataTable.Rows.Add(
                 user.Username,
@@ -38,14 +39,15 @@ namespace BlogLab.Repository
                 user.Email,
                 user.NormalizedEmail,
                 user.Fullname,
-                user.PasswordHash
+                user.PasswordHash,
+                user.IsAdmin
                 );
             using (var connection = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
             {
                 await connection.OpenAsync(cancellationToken);
 
                 await connection.ExecuteAsync("Account_Insert",
-                    new {  Account = dataTable.AsTableValuedParameter("dbo.AccountType")}, 
+                    new { Account = dataTable.AsTableValuedParameter("dbo.AccountType") },
                     commandType: CommandType.StoredProcedure);
             }
 
@@ -63,7 +65,7 @@ namespace BlogLab.Repository
                 await connection.OpenAsync(cancellationToken);
 
                 applicationUser = await connection.QuerySingleOrDefaultAsync<ApplicationUserIdentity>(
-                    "Account_GetByUsername", new { NormalizedUsername = normalizedUsername},
+                    "Account_GetByUsername", new { NormalizedUsername = normalizedUsername },
                     commandType: CommandType.StoredProcedure);
             }
 

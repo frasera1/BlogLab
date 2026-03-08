@@ -79,10 +79,38 @@ Create an **AI Draft** modal in the blog editor. Let the user enter topic, tone,
 
 Refine the alternate UI to feel production-ready: responsive layouts, focus-safe modal interactions, keyboard support, accessible form errors, metadata for public pages, 404/error states, and polished loading/empty states.
 
-## Prompt 19 - Add Targeted Tests
+## Prompt 19 - Plan the Admin Role and Blog-Management Scope
 
-Add targeted tests for auth modals, protected-route behavior, blog create/edit modal flows, Like toggling, and AI draft generation enabled/disabled behavior. Prefer the smallest practical scope first, then add a few end-to-end checks for the main user journeys.
+Audit the current authentication, JWT/session flow, ownership rules, and blog-management endpoints across the ASP.NET API and the Next.js alternate UI. Define the smallest safe admin feature set for managing blogs with scope explicitly limited to viewing and deleting blogs, document which actions admins should be allowed to perform, and identify the backend/frontend contract changes required before implementation.
 
-## Prompt 20 - Document Local Development and Rollout
+## Prompt 20 - Add Backend Foundations for an Admin Role
 
-Update the repository docs with instructions for running the ASP.NET API, the legacy Angular UI, and the new Next.js alternate UI together. Include environment variable guidance, Ollama setup notes, and a suggested rollout strategy.
+Implement the minimum backend/data-model changes needed to represent an admin user safely. Add the required SQL/schema or seed-data updates, repository/model changes, and JWT claim or user-shaping updates so admin status can be determined reliably without breaking existing login/register behavior for normal users.
+
+## Prompt 21 - Surface Admin State Through the Next.js Session Layer
+
+Extend the typed API models, auth/session helpers, and secure cookie-backed session shaping in `bloglab-ui-next` so the alternate UI can tell whether the current signed-in user is an admin. Keep the session contract explicit and avoid relying on ad hoc client-side assumptions.
+
+## Prompt 22 - Add Admin-Only Backend Read Support for Blog Management
+
+Add the smallest secure backend/API capability needed for an admin to review blogs beyond their own content. If the existing endpoints are insufficient, introduce a dedicated admin-only endpoint for listing blogs with the metadata required for moderation/management, and return clear authorization errors for non-admin users.
+
+## Prompt 23 - Build a Read-Only Admin Blog Management Page
+
+Create an admin-only area in the alternate UI, such as `/admin/blogs`, that lets an administrator review blogs across users. Start with a careful read-only experience first: loading states, empty states, author metadata, and clear access-denied handling before adding privileged mutations.
+
+## Prompt 24 - Add Admin Authorization for Cross-User Blog Mutations
+
+Implement the backend and Next.js BFF changes required for the only cross-user admin mutation in scope: secure delete of any blog. Do not add admin edit-any-blog behavior, and keep normal author create/edit/delete flows unchanged.
+
+## Prompt 25 - Add Admin Mutation Flows to the Alternate UI
+
+Extend the new admin blog-management area with a careful delete flow only. Add confirmation dialogs, loading protection, success/error toasts, and obvious UI separation between normal author actions and privileged admin actions.
+
+## Prompt 26 - Add Targeted Tests
+
+Add targeted tests for auth modals, protected-route behavior, admin-role session/guard behavior, admin blog-management flows, blog create/edit modal flows, Like toggling, and AI draft generation enabled/disabled behavior. Prefer the smallest practical scope first, then add a few end-to-end checks for the main user journeys.
+
+## Prompt 27 - Document Local Development and Rollout
+
+Update the repository docs with instructions for running the ASP.NET API, the legacy Angular UI, and the new Next.js alternate UI together. Include environment variable guidance, Ollama setup notes, admin-role setup/bootstrap guidance, and a suggested rollout strategy for the admin view-and-delete-only feature.

@@ -19,5 +19,7 @@ namespace BlogLab.Models.Account
         public string Fullname { get; set; }
 
         public string PasswordHash { get; set; }
+
+        public bool IsAdmin { get; set; }
     }
 }

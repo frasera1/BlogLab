@@ -18,7 +18,8 @@ CREATE TYPE [dbo].[AccountType] AS TABLE(
 	[Email] [varchar](30) NOT NULL,
 	[NormalizedEmail] [varchar](30) NOT NULL,
 	[Fullname] [varchar](30) NULL,
-	[PasswordHash] [nvarchar](max) NOT NULL
+	[PasswordHash] [nvarchar](max) NOT NULL,
+	[IsAdmin] [bit] NOT NULL
 )
 
 GO
@@ -69,11 +70,14 @@ CREATE TABLE [dbo].[ApplicationUser](
 	[NormalizedEmail] [varchar](30) NOT NULL,
 	[Fullname] [varchar](30) NULL,
 	[PasswordHash] [nvarchar](max) NOT NULL,
+	[IsAdmin] [bit] NOT NULL,
 PRIMARY KEY CLUSTERED 
 (
 	[ApplicationUserId] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+
+ALTER TABLE [dbo].[ApplicationUser] ADD  DEFAULT (CONVERT([bit],(0))) FOR [IsAdmin]
 
 SET ANSI_PADDING ON
 
@@ -293,6 +297,7 @@ AS
 		,[NormalizedEmail]
 		,[Fullname]
 		,[PasswordHash]
+		,[IsAdmin]
 	FROM 
 		[dbo].[ApplicationUser] t1
 	WHERE
@@ -323,7 +328,8 @@ AS
 		,[Email]
 		,[NormalizedEmail]
 		,[Fullname]
-		,[PasswordHash])
+		,[PasswordHash]
+		,[IsAdmin])
 		 
 	SELECT
 		[Username]
@@ -332,6 +338,7 @@ AS
 		,[NormalizedEmail]
 		,[Fullname]
 		,[PasswordHash]
+		,[IsAdmin]
 	FROM
 		@Account;
 
