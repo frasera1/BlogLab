@@ -6,6 +6,14 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Net.Http
+
+$script:uiNextHostPort = if ([string]::IsNullOrWhiteSpace($env:BLOGLAB_UI_NEXT_HOST_PORT)) {
+    '3000'
+}
+else {
+    $env:BLOGLAB_UI_NEXT_HOST_PORT
+}
 
 function Get-DockerCliPath {
     $dockerCommand = Get-Command docker -ErrorAction SilentlyContinue
@@ -39,7 +47,16 @@ function Invoke-Docker {
         [switch]$AllowFailure
     )
 
-    $output = & $script:dockerCli @Arguments 2>&1
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+
+    try {
+        $output = & $script:dockerCli @Arguments 2>&1
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
     $exitCode = $LASTEXITCODE
     $lines = @($output | ForEach-Object { [string]$_ })
 
@@ -153,7 +170,7 @@ function Wait-ForHttpOk {
 }
 
 function Show-ComposeLogs {
-    $logs = Invoke-Docker -Arguments @('compose', 'logs', '--no-color', '--tail=120', 'db-init', 'api', 'ui') -AllowFailure
+    $logs = Invoke-Docker -Arguments @('compose', 'logs', '--no-color', '--tail=120', 'db-init', 'api', 'ui', 'ui-next') -AllowFailure
     if ($logs.Output.Count -gt 0) {
         Write-Host ''
         Write-Host 'Recent compose logs:'
@@ -182,6 +199,7 @@ try {
     Write-Host 'Waiting for API and UI containers...'
     Wait-ForContainerRunning -ContainerName 'bloglab-api' -Deadline $containerDeadline
     Wait-ForContainerRunning -ContainerName 'bloglab-ui' -Deadline $containerDeadline
+    Wait-ForContainerRunning -ContainerName 'bloglab-ui-next' -Deadline $containerDeadline
 
     $httpDeadline = (Get-Date).AddSeconds($HttpTimeoutSeconds)
     Write-Host 'Checking API endpoint...'
@@ -190,10 +208,16 @@ try {
     Write-Host 'Checking UI endpoint...'
     $uiResult = Wait-ForHttpOk -Name 'UI' -Url 'http://localhost:4200' -Deadline $httpDeadline
 
+    $uiNextUrl = "http://localhost:$script:uiNextHostPort"
+
+    Write-Host 'Checking Next.js UI endpoint...'
+    $uiNextResult = Wait-ForHttpOk -Name 'Next.js UI' -Url $uiNextUrl -Deadline $httpDeadline
+
     Write-Host ''
     Write-Host 'Docker dev smoke test passed.'
     Write-Host "API  : $($apiResult.StatusCode) http://localhost:5000/api/blog"
     Write-Host "UI   : $($uiResult.StatusCode) http://localhost:4200"
+    Write-Host "Next : $($uiNextResult.StatusCode) $uiNextUrl"
     Write-Host "Body : $($apiResult.Body)"
 }
 catch {

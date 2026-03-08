@@ -74,7 +74,33 @@ services:
       sh -c "if [ ! -d node_modules ] || [ -z \"$(ls -A node_modules 2>/dev/null)\" ]; then npm ci; fi &&
       npm start -- --host 0.0.0.0 --port 4200 --poll 2000"
 
+  ui-next:
+    build:
+      context: ./bloglab-ui-next
+      dockerfile: Dockerfile.dev
+    container_name: bloglab-ui-next
+    working_dir: /usr/src/app
+    env_file:
+      - path: ./bloglab-ui-next/.env.local
+        required: false
+    environment:
+      NEXT_PUBLIC_BLOGLAB_API_BASE_URL: http://localhost:5000/api
+      BLOGLAB_SERVER_API_BASE_URL: http://api:5000/api
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+    depends_on:
+      api:
+        condition: service_started
+    volumes:
+      - ./bloglab-ui-next:/usr/src/app
+      - bloglab-ui-next-node-modules:/usr/src/app/node_modules
+    ports:
+      - "${BLOGLAB_UI_NEXT_HOST_PORT:-3000}:3000"
+    command: >
+      sh -c "npm run dev -- --hostname 0.0.0.0 --port 3000"
+
 volumes:
   bloglab-sqldata:
   bloglab-nuget:
   bloglab-ui-node-modules:
+  bloglab-ui-next-node-modules:

@@ -6,11 +6,12 @@
 - `db-init` — one-shot schema initializer for `BlogDB`
 - `api` — ASP.NET Core 3.1 API on `http://localhost:5000`
 - `ui` — Angular 11 dev server on `http://localhost:4200`
+- `ui-next` — Next.js alternate UI on `http://localhost:3000`
 
-The alternate Next.js UI in `bloglab-ui-next` is **not** currently part of
-`docker-compose.yml`. Run it separately on the host at `http://localhost:3000`
-when you want to compare the legacy Angular UI and the new alternate UI side by
-side.
+The `ui-next` service runs the alternate UI from `bloglab-ui-next` with the
+public browser API URL still pointing at `http://localhost:5000/api`, while
+server-side requests inside the container use the internal Compose URL
+`http://api:5000/api`.
 
 ## Prerequisites
 
@@ -50,6 +51,9 @@ Use `bloglab-ui-next/.env.local` for the alternate Next.js UI only.
 
 - `NEXT_PUBLIC_BLOGLAB_API_BASE_URL` — backend API base URL, usually
   `http://localhost:5000/api`
+- `BLOGLAB_SERVER_API_BASE_URL` — optional server-only API base URL for SSR and
+  route handlers; use `http://localhost:5000/api` on the host and
+  `http://api:5000/api` inside Docker Compose
 - `BLOGLAB_AUTH_TOKEN_COOKIE_NAME` / `BLOGLAB_AUTH_SESSION_COOKIE_NAME` —
   cookie names used by the Next.js BFF auth flow
 - `BLOGLAB_AUTH_COOKIE_MAX_AGE_SECONDS` — auth/session cookie lifetime
@@ -72,10 +76,34 @@ file for the Angular development server.
 4. Copy `bloglab-ui-next/.env.example` to `bloglab-ui-next/.env.local`.
 5. Confirm `NEXT_PUBLIC_BLOGLAB_API_BASE_URL=http://localhost:5000/api` in the
    Next.js env file.
+6. If you run `bloglab-ui-next` on the host, keep
+   `BLOGLAB_SERVER_API_BASE_URL=http://localhost:5000/api`. The Compose service
+   overrides it to `http://api:5000/api` automatically.
+7. If host port `3000` is already in use, set `BLOGLAB_UI_NEXT_HOST_PORT=3001`
+   before `docker compose up` to publish the Dockerized Next.js app on
+   `http://localhost:3001` instead.
 
-## Recommended ways to run all three apps together
+## Recommended ways to run the apps together
 
-### Option A — Docker for DB/API/Angular, host run for Next.js
+### Option A — Docker for DB/API/Angular/Next.js
+
+This is the simplest way to run both frontends and the API together.
+
+1. From the repository root, start the full Docker stack:
+
+   `docker compose up --build`
+
+2. Open:
+
+   - Angular UI: `http://localhost:4200`
+   - Next.js alternate UI: `http://localhost:3000`
+   - ASP.NET API: `http://localhost:5000`
+
+If `3000` is already occupied on the host, run Compose with
+`BLOGLAB_UI_NEXT_HOST_PORT=3001` and use `http://localhost:3001` for the Next.js
+UI.
+
+### Option B — Docker for DB/API/Angular, host run for Next.js
 
 This is the easiest way to compare the legacy and alternate UIs against the same
 backend.
@@ -96,7 +124,7 @@ backend.
    - Next.js alternate UI: `http://localhost:3000`
    - ASP.NET API: `http://localhost:5000`
 
-### Option B — Docker for DB only, host run for API + Angular + Next.js
+### Option C — Docker for DB only, host run for API + Angular + Next.js
 
 Use this when you want the API and both frontends running directly on the host.
 
@@ -166,6 +194,8 @@ The Ollama integration is only needed for the Next.js AI draft flow.
   not Ollama directly.
 - Enable it with `BLOGLAB_OLLAMA_ENABLED=true` in
   `bloglab-ui-next/.env.local`.
+- If `bloglab-ui-next` runs in Docker but Ollama runs on the host, set
+  `BLOGLAB_OLLAMA_HOST_URL=http://host.docker.internal:11434`.
 - The default local upstream is `http://localhost:11434` and the default model
   is `llama3.2`.
 - Make sure your Ollama-compatible server is running and the configured model is
@@ -208,8 +238,7 @@ This command:
 - waits for `db-init` to finish successfully
 - checks `http://localhost:5000/api/blog`
 - checks `http://localhost:4200`
-
-It does not currently start or verify the separate `bloglab-ui-next` dev server.
+- checks `http://localhost:3000` by default, or `http://localhost:$env:BLOGLAB_UI_NEXT_HOST_PORT` when that override is set
 
 If the stack is already running and you only want to verify it:
 
@@ -229,6 +258,8 @@ If the stack is already running and you only want to verify it:
 - The API container restores NuGet packages and runs `dotnet run`.
 - The Angular UI container installs packages into a Docker volume and runs
   `ng serve`.
+- The Next.js UI container installs packages into a Docker volume and runs
+  `next dev` on port `3000`.
 - File watching uses polling for better compatibility with mounted volumes on
   Windows.
 - The `.env` file is used for both Compose variable substitution and container
