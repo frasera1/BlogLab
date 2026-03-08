@@ -6,6 +6,7 @@ BlogLab is a full-stack blog application composed of:
 
 - **ASP.NET Core 3.1 Web API** in `BlogLab.Web`
 - **Angular 11 UI** in `BlogLab-UI`
+- **Next.js App Router alternate UI** in `bloglab-ui-next`
 - Shared **domain models**, **repositories**, **services**, and **identity** projects
 
 The backend solution is defined in `BlogLab.sln` and references five .NET projects.
@@ -19,13 +20,14 @@ The backend solution is defined in `BlogLab.sln` and references five .NET projec
 - `BlogLab.Services/` — token generation and photo upload services
 - `BlogLab.Identity/` — custom identity user store integration
 - `BlogLab-UI/` — Angular client application
+- `bloglab-ui-next/` — Next.js alternate client application
 - `Postman/` — API collection and environment files
 - `images/` — sample/static image assets
 
 ## Backend Solution Projects
 
 | Project | Role | Notes |
-|---|---|---|
+| --- | --- | --- |
 | `BlogLab.Web` | API entrypoint | `netcoreapp3.1`, JWT auth, CORS, controller hosting |
 | `BlogLab.Models` | Shared models | Blog, account, comment, photo, paging, settings, exceptions |
 | `BlogLab.Repository` | Data access | Dapper + SQL Client repositories/interfaces |
@@ -80,6 +82,8 @@ Typical flow:
   - `GET /` (authorized)
   - `GET /{photoId}`
   - `DELETE /{photoId}` (authorized)
+- `AdminBlogController` — `api/admin/blog`
+  - `GET /` (authorized, admin only)
 
 ## Shared Models (`BlogLab.Models`)
 
@@ -126,7 +130,7 @@ This project is referenced across the backend for shared contracts.
 
 ## Frontend (`BlogLab-UI`)
 
-### Stack
+### Next.js stack
 
 - Angular `11.2.x`
 - Bootstrap 4, `ngx-bootstrap`, `ngx-toastr`
@@ -167,13 +171,38 @@ This project is referenced across the backend for shared contracts.
   - `error.interceptor.ts`
 - `src/app/pipes/summary.pipe.ts` — UI text summarization helper
 
+## Alternate Frontend (`bloglab-ui-next`)
+
+### Stack
+
+- Next.js `16.x`
+- React `19.x`
+- App Router with server components and route handlers
+
+### Core app areas
+
+- `src/app/` — route tree, layouts, pages, loading states, and route handlers
+- `src/components/` — UI components for public, author, auth, admin, and shared flows
+- `src/lib/api/` — typed backend API clients and factories
+- `src/lib/auth/` — cookie-backed auth/session helpers for server and client code
+- `src/lib/ai/` — Ollama proxy integration helpers
+
+### Notable routes
+
+- `/` — public home page
+- `/blogs` — paginated public blog list
+- `/blogs/[blogId]` — public blog detail with comments
+- `/me/posts` — author post management
+- `/me/media` — author photo management
+- `/admin/blogs` — admin review/delete workspace
+
 ## Supporting Assets
 
 - `Postman/BlogLab WebApi.postman_collection.json` — API request collection
 - `Postman/Dev.postman_environment.json` — Postman environment config
 - `images/` — image assets
 
-## Notes
+## Index notes
 
 - `bin/` and `obj/` folders exist in several .NET projects and are build artifacts rather than source.
 - No top-level `docs/` folder existed before this index was added.
