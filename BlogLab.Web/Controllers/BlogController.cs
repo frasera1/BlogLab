@@ -121,7 +121,7 @@ namespace BlogLab.Web.Controllers
             if (foundBlog == null) return BadRequest("Blog does not exist.");
 
 
-            if (foundBlog.ApplicationUserId == applicationUserId)
+            if (foundBlog.ApplicationUserId == applicationUserId || User.IsInRole("Admin"))
             {
                 var affectedRows = await _blogRepository.DeleteAsync(blogId);
 
