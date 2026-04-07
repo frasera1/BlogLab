@@ -35,4 +35,7 @@ echo "Ensuring application login exists..."
 echo "Reconciling persisted schema drift..."
 run_sql_file BlogDB /usr/config/init/03-reconcile-schema.sql
 
+echo "Seeding default local admin user..."
+run_sql_file BlogDB /usr/config/init/04-seed-admin-user.sql
+
 echo "Database initialization complete."

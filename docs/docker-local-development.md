@@ -167,22 +167,25 @@ Use this when you want the API and both frontends running directly on the host.
 
 ## Admin bootstrap for local development
 
-Normal registration creates non-admin users only, so local admin access must be
-bootstrapped manually.
+The Docker init flow now seeds a default admin account in `BlogDB`.
 
-1. Register a user through either UI.
-2. Connect to the local `BlogDB` as `sa` or with the app login from `.env`.
-3. Promote the user:
+- Username: `adminlab`
+- Password: `Admin12345!`
 
-   ```sql
-   USE [BlogDB];
+If you already had a persisted Docker volume before this seed was added, either
+restart the stack so the reconcile/seed steps run again, or promote an existing
+user manually:
 
-   UPDATE dbo.ApplicationUser
-   SET IsAdmin = 1
-   WHERE Username = 'your-username';
-   ```
+```sql
+USE [BlogDB];
 
-4. Sign out and sign back in so a fresh JWT/session is issued.
+UPDATE dbo.ApplicationUser
+SET IsAdmin = 1
+WHERE Username = 'your-username';
+```
+
+After changing admin state, sign out and sign back in so a fresh JWT/session is
+issued.
 
 The admin feature is intentionally limited to the separate `/admin/blogs`
 workspace and only supports viewing and deleting blogs across users.
