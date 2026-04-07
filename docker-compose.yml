@@ -43,6 +43,9 @@ services:
       ASPNETCORE_URLS: http://0.0.0.0:5000
       DOTNET_USE_POLLING_FILE_WATCHER: "1"
       Jwt__Issuer: http://localhost:5000
+      CloudinaryOptions__CloudName: ${CLOUDINARY_CLOUD_NAME:-}
+      CloudinaryOptions__ApiKey: ${CLOUDINARY_API_KEY:-}
+      CloudinaryOptions__ApiSecret: ${CLOUDINARY_API_SECRET:-}
       ConnectionStrings__DefaultConnection: "Server=db,1433;Database=BlogDB;User Id=${BLOGDB_APP_USER:-bloguser};Password=${BLOGDB_APP_PASSWORD:-change-me};Persist Security Info=False;Pooling=False;MultipleActiveResultSets=False;Encrypt=False;TrustServerCertificate=True"
     depends_on:
       db-init:
@@ -53,8 +56,8 @@ services:
     ports:
       - "5000:5000"
     command: >
-      sh -c "dotnet restore BlogLab.sln &&
-      dotnet run --project BlogLab.Web --no-launch-profile --urls http://0.0.0.0:5000"
+      sh -c "dotnet restore BlogLab.sln --disable-build-servers --artifacts-path /tmp/dotnet-artifacts &&
+      dotnet run --project BlogLab.Web --no-launch-profile --disable-build-servers --artifacts-path /tmp/dotnet-artifacts --urls http://0.0.0.0:5000"
 
   ui:
     build:
@@ -86,6 +89,10 @@ services:
     environment:
       NEXT_PUBLIC_BLOGLAB_API_BASE_URL: http://localhost:5000/api
       BLOGLAB_SERVER_API_BASE_URL: http://api:5000/api
+      BLOGLAB_OLLAMA_ENABLED: "true"
+      BLOGLAB_OLLAMA_HOST_URL: http://host.docker.internal:11434
+      BLOGLAB_OLLAMA_MODEL: llama3.2:latest
+      BLOGLAB_OLLAMA_TIMEOUT_MS: "45000"
       CHOKIDAR_USEPOLLING: "true"
       WATCHPACK_POLLING: "true"
     depends_on:
@@ -95,7 +102,7 @@ services:
       - ./bloglab-ui-next:/usr/src/app
       - bloglab-ui-next-node-modules:/usr/src/app/node_modules
     ports:
-      - "${BLOGLAB_UI_NEXT_HOST_PORT:-3000}:3000"
+      - "${BLOGLAB_UI_NEXT_HOST_PORT:-3001}:3000"
     command: >
       sh -c "npm run dev -- --hostname 0.0.0.0 --port 3000"
 

@@ -165,7 +165,7 @@ GO
 
 CREATE TABLE [dbo].[BlogComment](
 	[BlogCommentId] [int] IDENTITY(1,1) NOT NULL,
-	[ParentBlogCommentId] [int] NOT NULL,
+	[ParentBlogCommentId] [int] NULL,
 	[BlogId] [int] NOT NULL,
 	[ApplicationUserId] [int] NOT NULL,
 	[Content] [varchar](300) NOT NULL,

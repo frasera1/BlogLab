@@ -32,4 +32,7 @@ echo "Ensuring application login exists..."
   -v APP_USER="${BLOGDB_APP_USER}" APP_PASSWORD="${BLOGDB_APP_PASSWORD}" \
   -i /usr/config/init/02-create-app-login.sql
 
+echo "Reconciling persisted schema drift..."
+run_sql_file BlogDB /usr/config/init/03-reconcile-schema.sql
+
 echo "Database initialization complete."

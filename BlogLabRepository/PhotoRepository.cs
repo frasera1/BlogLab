@@ -1,10 +1,10 @@
 ﻿using BlogLab.Models.Photo;
 using Dapper;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -29,9 +29,9 @@ namespace BlogLab.Repository
 
                 affectedRows = await connection.ExecuteAsync(
                     "Photo_Delete",
-                    new { PhotoId = photoId},
-                    commandType: CommandType.StoredProcedure) ;
-               
+                    new { PhotoId = photoId },
+                    commandType: CommandType.StoredProcedure);
+
             }
 
             return affectedRows;
@@ -93,8 +93,11 @@ namespace BlogLab.Repository
                 await connection.OpenAsync();
 
                 newPhotoId = await connection.ExecuteScalarAsync<int>("Photo_Insert",
-                    new { Photo = dataTable.AsTableValuedParameter("dbo.PhotoType"),
-                    ApplicationUserId = applicationUserId},
+                    new
+                    {
+                        Photo = dataTable.AsTableValuedParameter("dbo.PhotoType"),
+                        ApplicationUserId = applicationUserId
+                    },
                     commandType: CommandType.StoredProcedure);
             }
 

@@ -1,10 +1,10 @@
 ﻿using BlogLab.Models.BlogComment;
 using Dapper;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -92,8 +92,11 @@ namespace BlogLab.Repository
                 await connection.OpenAsync();
 
                 newBlogCommentId = await connection.ExecuteScalarAsync<int>("BlogComment_Upsert",
-                    new { BlogComment = dataTable.AsTableValuedParameter("dbo.BlogCommentType"),
-                    ApplicationUserId = applicationUserId},
+                    new
+                    {
+                        BlogComment = dataTable.AsTableValuedParameter("dbo.BlogCommentType"),
+                        ApplicationUserId = applicationUserId
+                    },
                     commandType: CommandType.StoredProcedure);
             }
 

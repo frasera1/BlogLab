@@ -4,9 +4,9 @@
 
 - `db` — SQL Server 2022 Developer on `localhost:14333`
 - `db-init` — one-shot schema initializer for `BlogDB`
-- `api` — ASP.NET Core 3.1 API on `http://localhost:5000`
+- `api` — ASP.NET Core .NET 10 API on `http://localhost:5000`
 - `ui` — Angular 11 dev server on `http://localhost:4200`
-- `ui-next` — Next.js alternate UI on `http://localhost:3000`
+- `ui-next` — Next.js alternate UI on `http://localhost:3001`
 
 The `ui-next` service runs the alternate UI from `bloglab-ui-next` with the
 public browser API URL still pointing at `http://localhost:5000/api`, while
@@ -17,7 +17,7 @@ server-side requests inside the container use the internal Compose URL
 
 - Docker Desktop
 - Node.js and npm for host-side `BlogLab-UI` or `bloglab-ui-next` runs
-- .NET SDK tooling compatible with `BlogLab.Web` (`netcoreapp3.1`) if you want
+- .NET SDK tooling compatible with `BlogLab.Web` (`net10.0`) if you want
   to run the API outside Docker
 - A local repository-root `.env` file populated with development credentials
 
@@ -42,8 +42,9 @@ Use the root `.env` file for Docker Compose and the API container.
 - `BLOGDB_APP_USER` / `BLOGDB_APP_PASSWORD` — application DB login created by
   `docker/db/init/02-create-app-login.sql`
 - `Jwt__Key` — optional JWT signing key override for the API container
+- `CLOUDINARY_URL` — preferred Cloudinary connection string for photo uploads
 - `CloudinaryOptions__CloudName`, `CloudinaryOptions__ApiKey`,
-  `CloudinaryOptions__ApiSecret` — optional photo upload settings
+  `CloudinaryOptions__ApiSecret` — optional fallback photo upload settings
 
 ### `bloglab-ui-next/.env.local`
 
@@ -73,15 +74,16 @@ file for the Angular development server.
 1. Copy `.env.example` to `.env` if needed.
 2. Set `BLOGDB_SA_PASSWORD`, `BLOGDB_APP_USER`, and `BLOGDB_APP_PASSWORD`.
 3. Fill in Cloudinary values in `.env` if you need photo upload support.
+  Prefer `CLOUDINARY_URL`; the split `CloudinaryOptions__*` keys are only a fallback.
 4. Copy `bloglab-ui-next/.env.example` to `bloglab-ui-next/.env.local`.
 5. Confirm `NEXT_PUBLIC_BLOGLAB_API_BASE_URL=http://localhost:5000/api` in the
    Next.js env file.
 6. If you run `bloglab-ui-next` on the host, keep
    `BLOGLAB_SERVER_API_BASE_URL=http://localhost:5000/api`. The Compose service
    overrides it to `http://api:5000/api` automatically.
-7. If host port `3000` is already in use, set `BLOGLAB_UI_NEXT_HOST_PORT=3001`
-   before `docker compose up` to publish the Dockerized Next.js app on
-   `http://localhost:3001` instead.
+7. By default the Dockerized Next.js app publishes on `http://localhost:3001`.
+  If you want a different host port, set `BLOGLAB_UI_NEXT_HOST_PORT` before
+  `docker compose up`.
 
 ## Recommended ways to run the apps together
 
@@ -95,13 +97,12 @@ This is the simplest way to run both frontends and the API together.
 
 2. Open:
 
-   - Angular UI: `http://localhost:4200`
-   - Next.js alternate UI: `http://localhost:3000`
-   - ASP.NET API: `http://localhost:5000`
+- Angular UI: `http://localhost:4200`
+- Next.js alternate UI: `http://localhost:3001`
+- ASP.NET API: `http://localhost:5000`
 
-If `3000` is already occupied on the host, run Compose with
-`BLOGLAB_UI_NEXT_HOST_PORT=3001` and use `http://localhost:3001` for the Next.js
-UI.
+If you want the Next.js UI on a different host port, run Compose with
+`BLOGLAB_UI_NEXT_HOST_PORT=<port>` and use `http://localhost:<port>`.
 
 ### Option B — Docker for DB/API/Angular, host run for Next.js
 
@@ -205,8 +206,8 @@ The Ollama integration is only needed for the Next.js AI draft flow.
 
 ## Suggested rollout strategy for admin view + delete
 
-1. Keep the Angular UI available during rollout and treat the Next.js app as an
-   alternate UI on `http://localhost:3000`.
+1. Keep the Angular UI available during rollout and treat the Dockerized Next.js
+  app as an alternate UI on `http://localhost:3001`.
 2. Bootstrap admin access only for a small number of known test accounts.
 3. Keep admin work inside `/admin/blogs`, separate from the normal author
    workspace.
@@ -238,11 +239,33 @@ This command:
 - waits for `db-init` to finish successfully
 - checks `http://localhost:5000/api/blog`
 - checks `http://localhost:4200`
-- checks `http://localhost:3000` by default, or `http://localhost:$env:BLOGLAB_UI_NEXT_HOST_PORT` when that override is set
+- checks `http://localhost:3001` by default, or `http://localhost:$env:BLOGLAB_UI_NEXT_HOST_PORT` when that override is set
 
 If the stack is already running and you only want to verify it:
 
 `pwsh ./scripts/smoke-test-docker-dev.ps1 -SkipComposeUp`
+
+## Backend-only host smoke test
+
+From the repository root:
+
+`pwsh ./scripts/smoke-test-backend-host.ps1`
+
+This command:
+
+- starts `db` and `db-init` if needed
+- host-runs `BlogLab.Web` against the Docker SQL instance with the local `sa` connection string override used during the migration
+- verifies host startup through `GET /api/blog = 200`
+- verifies one authenticated route with register/login plus `POST /api/blog = 200`
+- verifies the admin-only route with `GET /api/admin/blog = 403` as a normal user and `200` after promoting that same user to admin in the local SQL container
+
+If the Docker DB services are already running, you can skip the Compose step:
+
+`pwsh ./scripts/smoke-test-backend-host.ps1 -SkipComposeUp`
+
+If you already started the API yourself and only want the HTTP checks:
+
+`pwsh ./scripts/smoke-test-backend-host.ps1 -SkipComposeUp -SkipApiStart`
 
 ## Stop
 
@@ -255,9 +278,11 @@ If the stack is already running and you only want to verify it:
   exist in that volume.
 - The init script uses `sqlcmd -b`, so container startup fails fast if schema
   application hits an error.
-- The API container restores NuGet packages and runs `dotnet run`.
+- The API container uses the .NET 10 SDK image, restores NuGet packages, and runs `dotnet run`.
 - The Angular UI container installs packages into a Docker volume and runs
   `ng serve`.
+- The Compose `api` service uses a container-local .NET artifacts path so it
+  does not fight the host API over bind-mounted backend `bin`/`obj` outputs.
 - The Next.js UI container installs packages into a Docker volume and runs
   `next dev` on port `3000`.
 - File watching uses polling for better compatibility with mounted volumes on

@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Net.Http
 
 $script:uiNextHostPort = if ([string]::IsNullOrWhiteSpace($env:BLOGLAB_UI_NEXT_HOST_PORT)) {
-    '3000'
+    '3001'
 }
 else {
     $env:BLOGLAB_UI_NEXT_HOST_PORT

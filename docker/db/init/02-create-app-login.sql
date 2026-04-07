@@ -1,25 +1,41 @@
-IF SUSER_ID(N'$(APP_USER)') IS NULL
+DECLARE @appUser sysname = N'$(APP_USER)';
+DECLARE @appPassword nvarchar(256) = REPLACE(N'$(APP_PASSWORD)', N'''', N'''''');
+DECLARE @loginSql nvarchar(max);
+
+IF SUSER_ID(@appUser) IS NULL
 BEGIN
-    DECLARE @appUser sysname = N'$(APP_USER)';
-    DECLARE @appPassword nvarchar(256) = REPLACE(N'$(APP_PASSWORD)', N'''', N'''''');
-    DECLARE @loginSql nvarchar(max) =
+    SET @loginSql =
         N'CREATE LOGIN ' + QUOTENAME(@appUser) +
         N' WITH PASSWORD = N''' + @appPassword + N''', CHECK_POLICY = OFF, CHECK_EXPIRATION = OFF;';
-
-    EXEC(@loginSql);
 END
+ELSE
+BEGIN
+    SET @loginSql =
+        N'ALTER LOGIN ' + QUOTENAME(@appUser) +
+        N' WITH PASSWORD = N''' + @appPassword + N''', CHECK_POLICY = OFF, CHECK_EXPIRATION = OFF;';
+END
+
+EXEC(@loginSql);
 GO
 
 USE [BlogDB];
 GO
 
+DECLARE @appUser sysname = N'$(APP_USER)';
+
 IF USER_ID(N'$(APP_USER)') IS NULL
 BEGIN
-    DECLARE @appUser sysname = N'$(APP_USER)';
     DECLARE @userSql nvarchar(max) =
         N'CREATE USER ' + QUOTENAME(@appUser) + N' FOR LOGIN ' + QUOTENAME(@appUser) + N';';
 
     EXEC(@userSql);
+END
+ELSE
+BEGIN
+    DECLARE @remapUserSql nvarchar(max) =
+        N'ALTER USER ' + QUOTENAME(@appUser) + N' WITH LOGIN = ' + QUOTENAME(@appUser) + N';';
+
+    EXEC(@remapUserSql);
 END
 GO
 
