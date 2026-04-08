@@ -12,6 +12,12 @@ namespace BlogLab.Repository
     {
         public Task<IdentityResult> CreateAsync(ApplicationUserIdentity user, CancellationToken cancellationToken);
 
+        public Task<ApplicationUserIdentity> GetByIdAsync(int applicationUserId, CancellationToken cancellationToken);
+
         public Task<ApplicationUserIdentity> GetByUsernameAsync(string normalizedUsername, CancellationToken cancellationToken);
+
+        public Task<IdentityResult> UpdateAsync(ApplicationUserIdentity user, CancellationToken cancellationToken);
+
+        public Task<IdentityResult> DeleteAsync(int applicationUserId, CancellationToken cancellationToken);
     }
 }

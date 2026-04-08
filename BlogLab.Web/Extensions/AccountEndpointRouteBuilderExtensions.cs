@@ -19,6 +19,12 @@ namespace BlogLab.Web.Extensions
         .WithName("Account_Register");
       group.MapPost("/login", LoginAsync)
         .WithName("Account_Login");
+      group.MapGet("/me", GetCurrentUserAsync)
+        .WithName("Account_GetCurrentUser")
+        .RequireAuthorization();
+      group.MapPut("/me", UpdateCurrentUserAsync)
+        .WithName("Account_UpdateCurrentUser")
+        .RequireAuthorization();
 
       return endpoints;
     }
@@ -48,7 +54,7 @@ namespace BlogLab.Web.Extensions
       {
         applicationUserIdentity = await userManager.FindByNameAsync(applicationUserCreate.Username);
 
-        return TypedResults.Ok(CreateApplicationUser(applicationUserIdentity, tokenService));
+        return TypedResults.Ok(CreateApplicationUser(applicationUserIdentity, tokenService, includeToken: true));
       }
 
       return TypedResults.BadRequest(result.Errors);
@@ -77,16 +83,70 @@ namespace BlogLab.Web.Extensions
 
         if (result.Succeeded)
         {
-          return TypedResults.Ok(CreateApplicationUser(applicationUserIdentity, tokenService));
+          return TypedResults.Ok(CreateApplicationUser(applicationUserIdentity, tokenService, includeToken: true));
         }
       }
 
       return TypedResults.BadRequest("Invalid login attempt.");
     }
 
+    private static async Task<IResult> GetCurrentUserAsync(
+        HttpContext httpContext,
+        ITokenService tokenService,
+        UserManager<ApplicationUserIdentity> userManager)
+    {
+      var applicationUserIdentity = await userManager.FindByIdAsync(httpContext.User.GetRequiredApplicationUserId().ToString());
+
+      if (applicationUserIdentity is null)
+      {
+        return TypedResults.Unauthorized();
+      }
+
+      return TypedResults.Ok(CreateApplicationUser(applicationUserIdentity, tokenService, includeToken: false));
+    }
+
+    private static async Task<IResult> UpdateCurrentUserAsync(
+        ApplicationUserUpdate applicationUserUpdate,
+        HttpContext httpContext,
+        ITokenService tokenService,
+        UserManager<ApplicationUserIdentity> userManager)
+    {
+      var validationProblem = applicationUserUpdate.ValidateRequest();
+      if (validationProblem is not null)
+      {
+        return validationProblem;
+      }
+
+      var applicationUserIdentity = await userManager.FindByIdAsync(httpContext.User.GetRequiredApplicationUserId().ToString());
+
+      if (applicationUserIdentity is null)
+      {
+        return TypedResults.Unauthorized();
+      }
+
+      applicationUserIdentity.Email = applicationUserUpdate.Email;
+      applicationUserIdentity.Fullname = applicationUserUpdate.Fullname;
+
+      var result = await userManager.UpdateAsync(applicationUserIdentity);
+      if (!result.Succeeded)
+      {
+        return TypedResults.BadRequest(result.Errors);
+      }
+
+      applicationUserIdentity = await userManager.FindByIdAsync(applicationUserIdentity.ApplicationUserId.ToString());
+
+      if (applicationUserIdentity is null)
+      {
+        return TypedResults.Unauthorized();
+      }
+
+      return TypedResults.Ok(CreateApplicationUser(applicationUserIdentity, tokenService, includeToken: false));
+    }
+
     private static ApplicationUser CreateApplicationUser(
         ApplicationUserIdentity applicationUserIdentity,
-        ITokenService tokenService)
+        ITokenService tokenService,
+        bool includeToken)
     {
       return new ApplicationUser
       {
@@ -95,7 +155,7 @@ namespace BlogLab.Web.Extensions
         Email = applicationUserIdentity.Email,
         Fullname = applicationUserIdentity.Fullname,
         IsAdmin = applicationUserIdentity.IsAdmin,
-        Token = tokenService.CreateToken(applicationUserIdentity)
+        Token = includeToken ? tokenService.CreateToken(applicationUserIdentity) : null
       };
     }
   }

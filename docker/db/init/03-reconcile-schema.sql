@@ -59,6 +59,24 @@ AS
         t1.[NormalizedUsername] = @NormalizedUsername
 GO
 
+CREATE OR ALTER PROCEDURE [dbo].[Account_GetById]
+    @ApplicationUserId INT
+AS
+    SELECT
+        [ApplicationUserId],
+        [Username],
+        [NormalizedUsername],
+        [Email],
+        [NormalizedEmail],
+        [Fullname],
+        [PasswordHash],
+        [IsAdmin]
+    FROM
+        [dbo].[ApplicationUser] t1
+    WHERE
+        t1.[ApplicationUserId] = @ApplicationUserId
+GO
+
 CREATE OR ALTER PROCEDURE [dbo].[Account_Insert]
     @Account [dbo].[AccountType] READONLY
 AS
@@ -71,6 +89,40 @@ AS
         @Account;
 
     SELECT CAST(SCOPE_IDENTITY() AS INT);
+GO
+
+CREATE OR ALTER PROCEDURE [dbo].[Account_Update]
+    @ApplicationUserId INT,
+    @Username VARCHAR(20),
+    @NormalizedUsername VARCHAR(20),
+    @Email VARCHAR(30),
+    @NormalizedEmail VARCHAR(30),
+    @Fullname VARCHAR(30) = NULL,
+    @PasswordHash NVARCHAR(MAX),
+    @IsAdmin BIT
+AS
+    UPDATE [dbo].[ApplicationUser]
+    SET
+        [Username] = @Username,
+        [NormalizedUsername] = @NormalizedUsername,
+        [Email] = @Email,
+        [NormalizedEmail] = @NormalizedEmail,
+        [Fullname] = @Fullname,
+        [PasswordHash] = @PasswordHash,
+        [IsAdmin] = @IsAdmin
+    WHERE
+        [ApplicationUserId] = @ApplicationUserId;
+
+    SELECT @@ROWCOUNT;
+GO
+
+CREATE OR ALTER PROCEDURE [dbo].[Account_Delete]
+    @ApplicationUserId INT
+AS
+    DELETE FROM [dbo].[ApplicationUser]
+    WHERE [ApplicationUserId] = @ApplicationUserId;
+
+    SELECT @@ROWCOUNT;
 GO
 
 IF EXISTS (

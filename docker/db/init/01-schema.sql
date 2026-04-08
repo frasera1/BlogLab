@@ -308,6 +308,37 @@ AS
 
 
 
+GO
+
+/****** Object:  StoredProcedure [dbo].[Account_GetById]    Script Date: 4/8/2026 12:00:00 AM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE PROCEDURE [dbo].[Account_GetById]
+	@ApplicationUserId INT
+AS
+	SELECT
+		[ApplicationUserId]
+		,[Username]
+		,[NormalizedUsername]
+		,[Email]
+		,[NormalizedEmail]
+		,[Fullname]
+		,[PasswordHash]
+		,[IsAdmin]
+	FROM
+		[dbo].[ApplicationUser] t1
+	WHERE
+		t1.[ApplicationUserId] = @ApplicationUserId
+
+
+
+
+
+
 
 GO
 
@@ -345,6 +376,57 @@ AS
 	SELECT CAST(SCOPE_IDENTITY() AS INT);
 
 GO
+
+	/****** Object:  StoredProcedure [dbo].[Account_Update]    Script Date: 4/8/2026 12:00:00 AM ******/
+	SET ANSI_NULLS ON
+	GO
+
+	SET QUOTED_IDENTIFIER ON
+	GO
+
+	CREATE PROCEDURE [dbo].[Account_Update]
+		@ApplicationUserId INT,
+		@Username VARCHAR(20),
+		@NormalizedUsername VARCHAR(20),
+		@Email VARCHAR(30),
+		@NormalizedEmail VARCHAR(30),
+		@Fullname VARCHAR(30) = NULL,
+		@PasswordHash NVARCHAR(MAX),
+		@IsAdmin BIT
+	AS
+		UPDATE [dbo].[ApplicationUser]
+		SET
+			[Username] = @Username,
+			[NormalizedUsername] = @NormalizedUsername,
+			[Email] = @Email,
+			[NormalizedEmail] = @NormalizedEmail,
+			[Fullname] = @Fullname,
+			[PasswordHash] = @PasswordHash,
+			[IsAdmin] = @IsAdmin
+		WHERE
+			[ApplicationUserId] = @ApplicationUserId;
+
+		SELECT @@ROWCOUNT;
+
+	GO
+
+	/****** Object:  StoredProcedure [dbo].[Account_Delete]    Script Date: 4/8/2026 12:00:00 AM ******/
+	SET ANSI_NULLS ON
+	GO
+
+	SET QUOTED_IDENTIFIER ON
+	GO
+
+	CREATE PROCEDURE [dbo].[Account_Delete]
+		@ApplicationUserId INT
+	AS
+		DELETE FROM [dbo].[ApplicationUser]
+		WHERE
+			[ApplicationUserId] = @ApplicationUserId;
+
+		SELECT @@ROWCOUNT;
+
+	GO
 
 /****** Object:  StoredProcedure [dbo].[Blog_Delete]    Script Date: 3/6/2026 8:56:01 PM ******/
 SET ANSI_NULLS ON

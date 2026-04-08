@@ -115,17 +115,22 @@ namespace BlogLab.Identity
 
         public Task<IdentityResult> DeleteAsync(ApplicationUserIdentity user, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            return _accountRepository.DeleteAsync(user.ApplicationUserId, cancellationToken);
         }
 
         public Task<ApplicationUserIdentity> FindByIdAsync(string userId, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            if (!int.TryParse(userId, out var applicationUserId))
+            {
+                return Task.FromResult<ApplicationUserIdentity>(null);
+            }
+
+            return _accountRepository.GetByIdAsync(applicationUserId, cancellationToken);
         }
 
         public Task<IdentityResult> UpdateAsync(ApplicationUserIdentity user, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            return _accountRepository.UpdateAsync(user, cancellationToken);
         }
 
         public void Dispose()
