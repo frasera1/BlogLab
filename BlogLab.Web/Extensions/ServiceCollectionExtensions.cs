@@ -15,6 +15,7 @@ namespace BlogLab.Web.Extensions
     {
       services.Configure<CloudinaryOptions>(configuration.GetSection("CloudinaryOptions"));
 
+      services.AddScoped<IAdminUserDeletionService, AdminUserDeletionService>();
       services.AddScoped<ITokenService, TokenService>();
       services.AddScoped<IPhotoService, PhotoService>();
 

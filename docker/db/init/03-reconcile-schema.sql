@@ -125,6 +125,200 @@ AS
     SELECT @@ROWCOUNT;
 GO
 
+CREATE OR ALTER PROCEDURE [dbo].[Account_DeleteWithDependencies]
+    @ApplicationUserId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @DeletedLikeCount INT = 0;
+    DECLARE @DeletedCommentCount INT = 0;
+    DECLARE @DeletedBlogCount INT = 0;
+    DECLARE @DeletedPhotoCount INT = 0;
+    DECLARE @DeletedUserCount INT = 0;
+    DECLARE @Username VARCHAR(20);
+
+    SELECT @Username = [Username]
+    FROM [dbo].[ApplicationUser]
+    WHERE [ApplicationUserId] = @ApplicationUserId;
+
+    IF @Username IS NULL
+    BEGIN
+        RAISERROR('User does not exist.', 16, 1);
+        RETURN;
+    END
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DROP TABLE IF EXISTS #BlogsToBeDeleted;
+        SELECT
+            [BlogId]
+        INTO
+            #BlogsToBeDeleted
+        FROM
+            [dbo].[Blog]
+        WHERE
+            [ApplicationUserId] = @ApplicationUserId;
+
+        DROP TABLE IF EXISTS #CommentSeeds;
+        SELECT DISTINCT
+            [BlogCommentId]
+        INTO
+            #CommentSeeds
+        FROM
+        (
+            SELECT
+                [BlogCommentId]
+            FROM
+                [dbo].[BlogComment]
+            WHERE
+                [ApplicationUserId] = @ApplicationUserId
+
+            UNION
+
+            SELECT
+                [BlogCommentId]
+            FROM
+                [dbo].[BlogComment]
+            WHERE
+                [BlogId] IN (SELECT [BlogId] FROM #BlogsToBeDeleted)
+        ) commentSeeds;
+
+        DROP TABLE IF EXISTS #BlogCommentsToBeDeleted;
+
+        ;WITH cte_blogComments AS (
+            SELECT
+                [BlogCommentId]
+            FROM
+                #CommentSeeds
+            UNION ALL
+            SELECT
+                t1.[BlogCommentId]
+            FROM
+                [dbo].[BlogComment] t1
+                INNER JOIN cte_blogComments t2
+                    ON t2.[BlogCommentId] = t1.[ParentBlogCommentId]
+        )
+        SELECT DISTINCT
+            [BlogCommentId]
+        INTO
+            #BlogCommentsToBeDeleted
+        FROM
+            cte_blogComments;
+
+        DROP TABLE IF EXISTS #BlogLikesToBeDeleted;
+        SELECT DISTINCT
+            [BlogLikeId]
+        INTO
+            #BlogLikesToBeDeleted
+        FROM
+            [dbo].[BlogLike]
+        WHERE
+            [ApplicationUserId] = @ApplicationUserId OR
+            [BlogId] IN (SELECT [BlogId] FROM #BlogsToBeDeleted);
+
+        DELETE t1
+        FROM
+            [dbo].[BlogLike] t1
+            INNER JOIN #BlogLikesToBeDeleted t2
+                ON t2.[BlogLikeId] = t1.[BlogLikeId];
+
+        SET @DeletedLikeCount = @@ROWCOUNT;
+
+        DELETE t1
+        FROM
+            [dbo].[BlogComment] t1
+            INNER JOIN #BlogCommentsToBeDeleted t2
+                ON t2.[BlogCommentId] = t1.[BlogCommentId];
+
+        SET @DeletedCommentCount = @@ROWCOUNT;
+
+        DELETE t1
+        FROM
+            [dbo].[Blog] t1
+            INNER JOIN #BlogsToBeDeleted t2
+                ON t2.[BlogId] = t1.[BlogId];
+
+        SET @DeletedBlogCount = @@ROWCOUNT;
+
+        DELETE FROM [dbo].[Photo]
+        WHERE [ApplicationUserId] = @ApplicationUserId;
+
+        SET @DeletedPhotoCount = @@ROWCOUNT;
+
+        DELETE FROM [dbo].[ApplicationUser]
+        WHERE [ApplicationUserId] = @ApplicationUserId;
+
+        SET @DeletedUserCount = @@ROWCOUNT;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+        BEGIN
+            ROLLBACK TRANSACTION;
+        END
+
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
+        DECLARE @ErrorState INT = ERROR_STATE();
+
+        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+    END CATCH
+
+    SELECT
+        @ApplicationUserId [ApplicationUserId],
+        @Username [Username],
+        @DeletedBlogCount [DeletedBlogCount],
+        @DeletedCommentCount [DeletedCommentCount],
+        @DeletedLikeCount [DeletedLikeCount],
+        @DeletedPhotoCount [DeletedPhotoCount],
+        @DeletedUserCount [DeletedUserCount];
+END
+GO
+
+CREATE OR ALTER PROCEDURE [dbo].[Account_CountAdmins]
+AS
+    SELECT COUNT(1)
+    FROM [dbo].[ApplicationUser]
+    WHERE [IsAdmin] = CONVERT([bit], 1);
+GO
+
+CREATE OR ALTER PROCEDURE [dbo].[Account_GetAllPaged]
+    @Page INT = 1,
+    @PageSize INT = 10
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF (@Page < 1)
+    BEGIN
+        SET @Page = 1;
+    END
+
+    IF (@PageSize < 1)
+    BEGIN
+        SET @PageSize = 10;
+    END
+
+    DECLARE @Offset INT = (@Page - 1) * @PageSize;
+
+    SELECT
+        [ApplicationUserId],
+        [Username],
+        [Fullname],
+        [Email],
+        [IsAdmin]
+    FROM [dbo].[ApplicationUser]
+    ORDER BY [ApplicationUserId] DESC
+    OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+
+    SELECT COUNT(1)
+    FROM [dbo].[ApplicationUser];
+END
+GO
+
 IF EXISTS (
     SELECT 1
     FROM sys.columns

@@ -1,4 +1,5 @@
 ﻿using BlogLab.Models.Account;
+using BlogLab.Models.Blog;
 using Microsoft.AspNetCore.Identity;
 using System;
 using System.Collections.Generic;
@@ -11,6 +12,12 @@ namespace BlogLab.Repository
     public interface IAccountRepository
     {
         public Task<IdentityResult> CreateAsync(ApplicationUserIdentity user, CancellationToken cancellationToken);
+
+        public Task<int> CountAdminsAsync(CancellationToken cancellationToken);
+
+        public Task<ApplicationUserDeletionResult> DeleteWithDependenciesAsync(int applicationUserId, CancellationToken cancellationToken);
+
+        public Task<PagedResults<AdminUserSummary>> GetAllAsync(int page, int pageSize, CancellationToken cancellationToken);
 
         public Task<ApplicationUserIdentity> GetByIdAsync(int applicationUserId, CancellationToken cancellationToken);
 

@@ -1,8 +1,10 @@
 using System.Threading.Tasks;
+using BlogLab.Models.Account;
 using BlogLab.Models.Blog;
 using BlogLab.Repository;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 
 namespace BlogLab.Web.Extensions
@@ -134,7 +136,8 @@ namespace BlogLab.Web.Extensions
     private static async Task<IResult> DeleteAsync(
         int blogId,
         HttpContext httpContext,
-        IBlogRepository blogRepository)
+      IBlogRepository blogRepository,
+      UserManager<ApplicationUserIdentity> userManager)
     {
       var applicationUserId = httpContext.User.GetRequiredApplicationUserId();
       var foundBlog = await blogRepository.GetAsync(blogId);
@@ -144,7 +147,14 @@ namespace BlogLab.Web.Extensions
         return TypedResults.BadRequest("Blog does not exist.");
       }
 
-      if (foundBlog.ApplicationUserId == applicationUserId || httpContext.User.IsAdmin())
+      if (foundBlog.ApplicationUserId == applicationUserId)
+      {
+        var affectedRows = await blogRepository.DeleteAsync(blogId);
+        return TypedResults.Ok(affectedRows);
+      }
+
+      var currentUser = await httpContext.GetCurrentApplicationUserAsync(userManager);
+      if (currentUser is not null && currentUser.IsAdmin)
       {
         var affectedRows = await blogRepository.DeleteAsync(blogId);
         return TypedResults.Ok(affectedRows);

@@ -33,5 +33,6 @@ app.MapBlogEndpoints();
 app.MapBlogCommentEndpoints();
 app.MapPhotoEndpoints();
 app.MapAdminBlogEndpoints();
+app.MapAdminUserEndpoints();
 
 app.Run();

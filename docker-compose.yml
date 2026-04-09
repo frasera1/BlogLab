@@ -38,11 +38,14 @@ services:
     env_file:
       - path: .env
         required: false
+      - path: .env.local
+        required: false
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://0.0.0.0:5000
       DOTNET_USE_POLLING_FILE_WATCHER: "1"
       Jwt__Issuer: http://localhost:5000
+      CLOUDINARY_URL: ${CLOUDINARY_URL:-}
       CloudinaryOptions__CloudName: ${CLOUDINARY_CLOUD_NAME:-}
       CloudinaryOptions__ApiKey: ${CLOUDINARY_API_KEY:-}
       CloudinaryOptions__ApiSecret: ${CLOUDINARY_API_SECRET:-}

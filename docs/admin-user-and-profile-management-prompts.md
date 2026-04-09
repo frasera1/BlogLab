@@ -201,6 +201,21 @@ If username changes are risky, keep username read-only in the first pass and doc
 - Signed-in users have a protected `/me/profile` page for reviewing and updating their own account details.
 - The first release ships a safe, minimal profile-editing surface without overreaching into risky identity changes.
 
+### Lessons learned after completion
+
+- The safest page shape for Prompt 05 is a server-rendered `/me/profile` route that reuses the existing author-shell pattern and falls back to the same signed-in guard used elsewhere in the protected workspace.
+- Prompt 05 should keep username and admin role read-only. The backend profile slice added in Prompt 03 only supports `Email` and `Fullname`, and keeping identity-changing actions out of this page avoids token/claim churn plus role-management leakage.
+- A small browser-side profile client targeting the existing Next.js BFF route at `/api/account/me` is enough for the mutation flow. That preserves the HTTP-only cookie auth model and keeps browser code away from bearer-token handling.
+- `react-hook-form` plus Zod was sufficient for this slice because the edit surface is intentionally narrow. The useful extra work was normalizing backend/API errors into a concise submit summary and toast message instead of building more form infrastructure.
+- `router.refresh()` after a successful save is important here because Prompt 04 refreshes the session cookie in the BFF. That keeps the server-rendered author workspace aligned with updated profile data on the next render.
+
+### Completion notes
+
+- Added a protected `/me/profile` page in the Next.js alternate UI and wired it into the existing author workspace navigation.
+- Added a dedicated profile form with editable `fullname` and `email` fields plus read-only `username` and role display.
+- Added small profile-specific client/helpers for validation, request shaping, and backend error normalization against `/api/account/me`.
+- Focused validation exists for the profile client and profile schema/helpers, complementing the Prompt 04 route-handler coverage already in place for `/api/account/me`.
+
 ## Prompt 06 - Add an Admin-Only User Listing Endpoint
 
 Add a dedicated backend endpoint for admin user management, such as `GET /api/admin/users`, with pagination. Return only the fields the admin UI needs for review and action, for example:
@@ -219,6 +234,22 @@ Return `403` for authenticated non-admin users.
 - The backend exposes a dedicated admin-only read path for user management.
 - The admin UI can load a stable list of users without overloading login/account endpoints.
 
+### Lessons learned after completion
+
+- Prompt 06 stayed cleaner as a dedicated admin endpoint instead of extending `/api/account/*`. That keeps privileged read behavior explicit and avoids blurring self-service account APIs with administrator workflows.
+- A small summary contract is the right backend shape here. Returning `applicationUserId`, `username`, `fullname`, `email`, and `isAdmin` gives the future admin UI what it needs without reusing the login/register `ApplicationUser` shape and its token-oriented baggage.
+- The existing custom Identity store was not the right abstraction for paged admin listing. A repository-backed read path plus one stored procedure was the simpler and safer addition for Prompt 06.
+- Reusing the existing generic `PagedResults<T>` response shape kept pagination predictable without forcing broader model refactoring in the middle of the admin/user-management slice.
+- SQL support for this prompt needs to land in both checked-in init paths. Adding the list stored procedure to the baseline schema and reconcile script keeps fresh DB bootstraps and already-persisted local databases aligned.
+
+### Completion notes
+
+- Added `GET /api/admin/users` as an authenticated admin-only endpoint with `page` and `pageSize` query support.
+- Added `AdminUserSummary` as the lean response model for admin user review.
+- Extended the account repository with a paged list method backed by the new `Account_GetAllPaged` stored procedure.
+- Added `Account_GetAllPaged` to both `docker/db/init/01-schema.sql` and `docker/db/init/03-reconcile-schema.sql`.
+- Validation succeeded with `dotnet build BlogLab.sln --disable-build-servers --artifacts-path .artifacts-prompt06`.
+
 ## Prompt 07 - Surface Admin User Listing in the Next.js API Layer
 
 Extend the typed contracts, authenticated API client, and BFF route handlers in `bloglab-ui-next` so the alternate UI can fetch the admin user list through the same protected pattern already used for admin blog management.
@@ -227,6 +258,22 @@ Extend the typed contracts, authenticated API client, and BFF route handlers in 
 
 - The Next.js alternate UI can fetch admin user data using the same secure patterns already established for admin blog review.
 - Admin user-management pages stay consistent with the rest of the app's API architecture.
+
+### Lessons learned after completion
+
+- Prompt 07 fit best as a thin extension of the existing shared API layer: one new `AdminUserSummary` contract, one authenticated admin-user client, one factory surface, and one BFF route. No broader auth/session changes were required.
+- Reusing the existing `PagedResults<T>` and paging-parameter shapes kept the admin user listing contract aligned with the admin blog flow, which will make Prompt 08 page work simpler.
+- The BFF route should normalize paging inputs before forwarding them to the backend. That keeps browser-facing callers from depending on backend defaults and gives the route a small amount of defensive behavior without changing backend semantics.
+- Prompt 07 does not need session-cookie mutation logic. Unlike profile updates, admin user listing is read-only, so the route handler can stay much simpler than `/api/account/me`.
+- Focused coverage at the factory and route-handler layers was enough for this step. The high-value checks were authenticated endpoint targeting, token enforcement, paging forwarding, and passthrough of backend `401`/`403` error behavior.
+
+### Completion notes
+
+- Added `AdminUserSummary` to the shared Next.js API contracts.
+- Added an authenticated admin-user API client targeting backend `GET /admin/users` with page and page-size support.
+- Extended the shared API factory with `adminUser.getAll` using the same token-required flow as other privileged operations.
+- Added a protected Next.js BFF route at `/api/admin/users` that forwards admin user-list requests through the authenticated server API client with normalized paging and no-store responses.
+- Validation succeeded with focused Vitest coverage for the API factory and `/api/admin/users` route plus a successful `npm run build` production build in `bloglab-ui-next`.
 
 ## Prompt 08 - Build a Read-Only Admin Users Page
 
@@ -245,6 +292,22 @@ Do not add destructive mutations in this step.
 - `/admin/users` exists as a protected, read-only management surface.
 - Admins can review users safely before any privileged mutations are introduced.
 
+### Lessons learned after completion
+
+- Prompt 08 worked best as a server-rendered admin page that mirrors the existing `/admin/blogs` access pattern: signed-out users hit the admin auth guard, signed-in non-admin users get an explicit access-denied state, and admins get a read-only listing.
+- The shared admin shell needed a small generalization before a second admin page could land cleanly. Adding an active-tab concept and a second admin navigation entry was enough; there was no need for a larger layout rewrite.
+- A read-only first pass is easier to keep safe when the page copy makes the constraint explicit. The page now clearly signals that role changes and deletion flows are intentionally withheld until later prompts, which reduces accidental UX drift into privileged mutations.
+- The backend contract for Prompt 06 is intentionally lean, so Prompt 08 summaries had to rely on current-page signals rather than timestamps or richer moderation metadata. Counts like visible admins, visible authors, named profiles, and email-domain spread were enough for a first review surface.
+- A dedicated loading state matters here because admin pages are dynamic and gated. Adding `/admin/users/loading.tsx` keeps the protected workspace visually consistent with the existing admin blogs experience during data fetches.
+
+### Completion notes
+
+- Added a protected read-only `/admin/users` page in the Next.js alternate UI.
+- Reused the shared admin shell and expanded it to support both admin blogs and admin users navigation states.
+- Added summary cards, paginated user review cards, empty and out-of-range states, and explicit access-denied/auth-required handling.
+- Added a dedicated admin-user page loading state plus a small summary helper with focused test coverage.
+- Validation succeeded with focused Vitest coverage for the admin-user summary helper plus a successful `npm run build` production build in `bloglab-ui-next`.
+
 ## Prompt 09 - Add an Admin Role-Change Endpoint
 
 Add the smallest safe backend mutation for role management, for example:
@@ -258,6 +321,22 @@ Support toggling or explicitly setting `IsAdmin`. Add guardrails so an admin can
 - The backend supports a narrowly scoped, auditable admin-role mutation.
 - Last-admin protection is enforced server-side rather than relying on UI discipline.
 
+### Lessons learned after completion
+
+- Prompt 09 needed a dedicated request model even though the payload is small. Using `ApplicationUserRoleUpdate` with a required nullable `IsAdmin` flag prevents accidental demotions caused by missing request fields defaulting to `false`.
+- The biggest backend issue exposed by role changes was stale JWT role claims. Once admin status becomes mutable, privileged routes cannot safely rely only on `User.IsInRole(...)`; they need to verify current admin state from the database.
+- Because of that, Prompt 09 was not just a new `PATCH` route. It also required hardening existing privileged backend paths so admin blog review and admin delete-any-blog behavior respect current persisted admin state immediately after a role change.
+- Last-admin protection belongs in the backend mutation flow, not in the future UI. Counting current admins before a demotion keeps the guardrail authoritative regardless of which client eventually calls the endpoint.
+- Returning the same lean `AdminUserSummary` shape used by Prompt 06 keeps the mutation response immediately usable by later admin UI prompts without introducing a separate mutation-only contract.
+
+### Completion notes
+
+- Added admin-only `PATCH /api/admin/users/{applicationUserId}/role` with explicit `IsAdmin` input and an `AdminUserSummary` response.
+- Added backend last-admin protection through the new `Account_CountAdmins` repository/SQL primitive.
+- Added `ApplicationUserRoleUpdate` as the minimal request model for admin role changes.
+- Hardened privileged backend admin checks to use current persisted admin state for admin blog review, admin user management, and admin delete-any-blog authorization instead of trusting stale JWT role claims alone.
+- Validation succeeded with `dotnet build BlogLab.sln --disable-build-servers --artifacts-path .artifacts-prompt09`.
+
 ## Prompt 10 - Wire Role Changes Through the Next.js BFF
 
 Add the Next.js contracts, API client methods, and protected route-handler support required to call the new admin role-change endpoint. Keep the mutation behind the existing HTTP-only cookie-based auth flow and normalize error handling for `403`, validation failures, and last-admin protection.
@@ -267,6 +346,22 @@ Add the Next.js contracts, API client methods, and protected route-handler suppo
 - The admin UI can trigger role changes without bypassing the current BFF/auth model.
 - Expected backend errors are surfaced predictably to the UI.
 
+### Lessons learned after completion
+
+- Prompt 10 fit naturally into the existing Prompt 07 admin-user surface. Extending the same `adminUser` client/factory path with `updateRole` kept listing and mutation behavior in one typed API slice instead of splitting admin-user reads and writes across separate abstractions.
+- Supporting role changes required one small shared-infrastructure change: the base API client had to allow `PATCH` requests. That was the only transport-layer expansion needed for this step.
+- The BFF route should validate the dynamic `applicationUserId` path segment before calling the backend. That gives predictable `400` behavior for malformed browser requests and keeps the server API client focused on valid admin operations.
+- Prompt 10 does not need session-cookie refresh or broad page revalidation. Role changes affect the admin users workspace directly, so revalidating `/admin/users` is sufficient at this stage.
+- Focused route-handler coverage was especially valuable here because Prompt 10 is mostly about error normalization. The important cases were token enforcement, invalid route params, successful passthrough, and backend last-admin protection errors.
+
+### Completion notes
+
+- Added `AdminUserRoleUpdateInput` to the shared Next.js API contracts.
+- Extended the admin-user API client and shared factory with `adminUser.updateRole` targeting backend `PATCH /admin/users/{applicationUserId}/role`.
+- Added a protected Next.js BFF route at `/api/admin/users/[applicationUserId]/role` that validates route params, forwards the mutation through the authenticated server API client, and revalidates `/admin/users` after success.
+- Added focused Vitest coverage for the factory role-mutation path and the new dynamic BFF route, including invalid-id, unauthorized, and last-admin-protection cases.
+- Validation succeeded with focused Vitest coverage plus a successful `npm run build` production build in `bloglab-ui-next`.
+
 ## Prompt 11 - Add Role Management UI to the Admin Users Page
 
 Extend `/admin/users` with a careful admin-role management flow. Add explicit confirmation copy, loading protection, and success/error messaging. Make it visually obvious that this is a privileged action and keep the control separated from read-only user details.
@@ -275,6 +370,22 @@ Extend `/admin/users` with a careful admin-role management flow. Add explicit co
 
 - Admins can promote or demote users from `/admin/users` with clear, safe UX.
 - Role-management UI is visibly separated from non-privileged account interactions.
+
+### Lessons learned after completion
+
+- Prompt 11 worked best as a small client-side control embedded inside an otherwise server-rendered admin page. The page can keep its authenticated data-loading path, while the privileged mutation stays isolated in a focused browser component.
+- The most important correctness issue in this step was self-role changes. When an admin changes their own admin status, the BFF route needs to refresh the session cookie so the UI does not keep a stale `isAdmin` flag after the backend change succeeds.
+- Role management needed its own helper layer for confirmation copy and backend-error normalization. That kept the page component from absorbing mutation-specific branching and made the button/dialog behavior easier to test directly.
+- The safest UI shape is to visually separate privileged controls from profile review details. Prompt 11 keeps identity information readable while placing promotion/demotion actions in a dedicated, clearly labeled management section.
+- Focused tests were most valuable at the helper and BFF route layers for this prompt. Those checks cover the high-risk cases: self-role session refresh, backend error passthrough, and confirmation/error copy shaping.
+
+### Completion notes
+
+- Added a dedicated admin role-management client component for `/admin/users` with confirmation dialog, loading protection, success toast, and normalized error messaging.
+- Added small admin-role helpers and a browser-side role client to keep mutation copy, request handling, and error shaping isolated from the server page.
+- Updated the Next.js role-change BFF route so self-role changes refresh the session cookie before revalidating `/admin/users`.
+- Updated `/admin/users` to surface a clearly separated privileged role-management area on each user card while preserving the existing read-only account summary details.
+- Validation succeeded with focused Vitest coverage for the admin-role helpers and role-change BFF route plus a successful `npm run build` production build in `bloglab-ui-next`.
 
 ## Prompt 12 - Design and Implement Safe User Deletion Orchestration
 
@@ -296,6 +407,23 @@ Add guardrails for self-delete and last-admin delete behavior.
 - A backend deletion workflow exists that can safely remove a user and dependent artifacts in the correct order.
 - The highest-risk destructive behavior is centralized and protected by guardrails.
 
+### Lessons learned after completion
+
+- Prompt 12 needed a real orchestration boundary rather than a controller-level delete. The clean split is service-level guardrails plus repository-level SQL cleanup: admin/self/last-admin checks live in `AdminUserDeletionService`, while ordered relational cleanup lives in `Account_DeleteWithDependencies`.
+- The first pass exposed an important schema reality: because `Blog`, `BlogComment`, `BlogLike`, and `Photo` all hold foreign keys to `ApplicationUser`, a soft-delete-only approach is not enough. The final stored procedure has to delete dependent relational rows in FK-safe order before deleting the user row.
+- Comment cleanup has to consider thread descendants, not just comments authored by the target user. Seeding comment deletion from both the user's authored comments and comments attached to the user's blogs, then expanding recursively through child comments, keeps the delete path from leaving broken discussion trees behind.
+- Remote photo cleanup cannot share the SQL transaction. The safer tradeoff for this prompt is to commit the relational delete first, then attempt Cloudinary cleanup from the pre-fetched photo list so database state is never left half-deleted because of an external media call.
+- Returning a compact `ApplicationUserDeletionResult` with deleted counts by artifact type is useful at the orchestration layer itself, because Prompt 13 can expose that response shape directly without reopening the stored procedure contract.
+
+### Completion notes
+
+- Added `ApplicationUserDeletionResult` plus `IAdminUserDeletionService` and `AdminUserDeletionService` as the dedicated backend orchestration layer for admin user deletion.
+- Added repository support for `DeleteWithDependenciesAsync` backed by the new `Account_DeleteWithDependencies` stored procedure.
+- Added self-delete and last-admin guardrails in the service before any destructive work begins.
+- Implemented ordered dependent-row deletion in both `docker/db/init/01-schema.sql` and `docker/db/init/03-reconcile-schema.sql`, covering user likes, user-owned/blog-owned comment trees, user-owned blogs, photos, and finally the user row.
+- Moved remote photo cleanup to run after successful relational deletion and downgraded Cloudinary cleanup failures to warning logs so the database delete path remains authoritative.
+- Validation succeeded with `dotnet build BlogLab.sln --disable-build-servers --artifacts-path .artifacts-prompt12`.
+
 ## Prompt 13 - Add the Admin User-Deletion Endpoint
 
 Expose the deletion orchestration through a dedicated admin-only backend endpoint such as `DELETE /api/admin/users/{applicationUserId}`. Return a compact response that the UI can use to confirm success and refresh the list.
@@ -305,6 +433,21 @@ Expose the deletion orchestration through a dedicated admin-only backend endpoin
 - Admin user deletion is exposed through one explicit backend endpoint rather than scattered low-level operations.
 - The UI has a stable contract for delete confirmations and refresh behavior.
 
+### Lessons learned after completion
+
+- Prompt 13 should stay thin at the route layer. The delete endpoint works best when it only extracts the authenticated caller, invokes `IAdminUserDeletionService`, and normalizes the expected `401`/`403`/`400` error cases instead of re-implementing deletion policy in the route.
+- Reusing `ApplicationUserDeletionResult` as the delete response shape keeps the contract compact while still giving later UI work enough detail to confirm what was removed and refresh the list predictably.
+- A destructive path like this benefits from a smoke test before any UI wiring. Creating a temporary target user plus a second interacting user was enough to verify deletion of the target user, their blog, attached comment tree, and cross-user likes without needing a full test framework first.
+- The photo branch is still environment-sensitive because it depends on working Cloudinary credentials. In the current local environment, the new smoke test had to run with `-SkipPhotoUpload` after Cloudinary returned `Invalid api_key`, so relational deletion is verified live while remote-photo cleanup remains configuration-blocked at runtime here.
+
+### Completion notes
+
+- Added admin-only `DELETE /api/admin/users/{applicationUserId}` to `AdminUserEndpointRouteBuilderExtensions`.
+- The endpoint now delegates to `IAdminUserDeletionService` and returns the compact `ApplicationUserDeletionResult` contract directly on success.
+- Added focused destructive smoke coverage in `scripts/smoke-test-admin-user-delete.ps1`, which creates temporary users and dependent artifacts, deletes the target as admin, verifies cleanup, and removes the remaining helper user.
+- Validation succeeded with `dotnet build BlogLab.sln --disable-build-servers --artifacts-path .artifacts-prompt13`.
+- Live smoke validation succeeded against a host-run API on `http://127.0.0.1:5002` using `pwsh ./scripts/smoke-test-admin-user-delete.ps1 -BaseUrl 'http://127.0.0.1:5002' -SkipPhotoUpload`; full photo-covered runtime validation is currently blocked by invalid local Cloudinary credentials.
+
 ## Prompt 14 - Wire User Deletion Through the Next.js BFF
 
 Add the typed contract, authenticated API client method, and protected route-handler/BFF endpoint needed for admin user deletion. Revalidate the admin user list and any relevant admin pages after success.
@@ -313,6 +456,22 @@ Add the typed contract, authenticated API client method, and protected route-han
 
 - The Next.js app can perform admin user deletion through the same secure mutation path used elsewhere.
 - Successful deletes trigger correct page revalidation and list refreshes.
+
+### Lessons learned after completion
+
+- Prompt 14 fit cleanly into the existing `adminUser` API slice. Extending the shared typed contracts, authenticated client, and factory with `adminUser.remove` kept admin-user listing, role changes, and deletion in one consistent surface instead of scattering privileged user-management mutations across separate clients.
+- The dynamic BFF route should validate `applicationUserId` before contacting the backend. Returning a local `400` for malformed ids keeps the server API client focused on real admin operations and gives the UI predictable failure behavior.
+- Delete wiring did not need session-cookie mutation. Unlike Prompt 11 self-role changes, deleting another user only needs route-level passthrough plus `revalidatePath("/admin/users")` so the management page refreshes against current backend state.
+- Prompt 14 needs explicit passthrough for backend guardrail errors. Preserving plain-text `400`/`403` responses such as self-delete and last-admin protection keeps the later UI prompt free to render precise destructive-action feedback instead of reverse-engineering generic failures.
+- Focused route and factory tests were necessary but not sufficient on their own. Production-build validation exposed a contract import mistake in `admin-user-client.ts`, which was then corrected by sourcing `ApplicationUserDeletionResult` from the shared contracts module instead of the transport client module.
+
+### Completion notes
+
+- Added `ApplicationUserDeletionResult` to the shared Next.js API contracts for admin-user delete responses.
+- Extended the authenticated admin-user API client and shared API factory with `adminUser.remove` targeting backend `DELETE /admin/users/{applicationUserId}`.
+- Added a protected Next.js BFF route at `/api/admin/users/[applicationUserId]` that validates route params, forwards delete requests through the authenticated server API client, returns `no-store` responses, and revalidates `/admin/users` after success.
+- Added focused Vitest coverage for the delete route and shared factory wiring, including success, invalid-id, unauthorized, and backend guardrail error cases.
+- Validation succeeded with `npm run test -- src/app/api/admin/users/[applicationUserId]/route.test.ts src/lib/api/factory.test.ts` and `npm run build` in `bloglab-ui-next` after fixing the shared-contract import for the delete client.
 
 ## Prompt 15 - Add User Deletion UX to the Admin Users Page
 

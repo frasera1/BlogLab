@@ -1,6 +1,10 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
+using System.Threading.Tasks;
+using BlogLab.Models.Account;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 
 namespace BlogLab.Web.Extensions
 {
@@ -26,6 +30,19 @@ namespace BlogLab.Web.Extensions
     public static bool IsAdmin(this ClaimsPrincipal user)
     {
       return user?.IsInRole("Admin") ?? false;
+    }
+
+    public static async Task<ApplicationUserIdentity> GetCurrentApplicationUserAsync(
+        this HttpContext httpContext,
+        UserManager<ApplicationUserIdentity> userManager)
+    {
+      var applicationUserId = httpContext.User.TryGetApplicationUserId();
+      if (!applicationUserId.HasValue)
+      {
+        return null;
+      }
+
+      return await userManager.FindByIdAsync(applicationUserId.Value.ToString());
     }
   }
 }

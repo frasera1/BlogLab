@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\BlogLab.Models\BlogLab.Models.csproj" />
+    <ProjectReference Include="..\BlogLabRepository\BlogLab.Repository.csproj" />
   </ItemGroup>
 
 </Project>

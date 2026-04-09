@@ -1,4 +1,5 @@
 ﻿using BlogLab.Models.Account;
+using BlogLab.Models.Blog;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Identity;
@@ -60,6 +61,63 @@ namespace BlogLab.Repository
             }
 
             return IdentityResult.Success;
+        }
+
+        public async Task<int> CountAdminsAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using (var connection = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
+            {
+                await connection.OpenAsync(cancellationToken);
+
+                return await connection.QuerySingleAsync<int>(new CommandDefinition(
+                    "Account_CountAdmins",
+                    commandType: CommandType.StoredProcedure,
+                    cancellationToken: cancellationToken));
+            }
+        }
+
+        public async Task<ApplicationUserDeletionResult> DeleteWithDependenciesAsync(int applicationUserId, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using (var connection = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
+            {
+                await connection.OpenAsync(cancellationToken);
+
+                return await connection.QuerySingleAsync<ApplicationUserDeletionResult>(new CommandDefinition(
+                    "Account_DeleteWithDependencies",
+                    new { ApplicationUserId = applicationUserId },
+                    commandType: CommandType.StoredProcedure,
+                    cancellationToken: cancellationToken));
+            }
+        }
+
+        public async Task<PagedResults<AdminUserSummary>> GetAllAsync(int page, int pageSize, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using (var connection = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
+            {
+                await connection.OpenAsync(cancellationToken);
+
+                using (var gridReader = await connection.QueryMultipleAsync(new CommandDefinition(
+                    "Account_GetAllPaged",
+                    new { Page = page, PageSize = pageSize },
+                    commandType: CommandType.StoredProcedure,
+                    cancellationToken: cancellationToken)))
+                {
+                    var items = await gridReader.ReadAsync<AdminUserSummary>();
+                    var totalCount = await gridReader.ReadSingleAsync<int>();
+
+                    return new PagedResults<AdminUserSummary>
+                    {
+                        Items = items,
+                        TotalCount = totalCount
+                    };
+                }
+            }
         }
 
         public async Task<ApplicationUserIdentity> GetByIdAsync(int applicationUserId, CancellationToken cancellationToken)
