@@ -22,11 +22,11 @@ function Invoke-JsonRequest {
     )
 
     $params = @{
-        Method = $Method
-        Uri = $Uri
-        WebSession = $Session
-        Headers = @{ Accept = "application/json" }
-        TimeoutSec = 30
+        Method             = $Method
+        Uri                = $Uri
+        WebSession         = $Session
+        Headers            = @{ Accept = "application/json" }
+        TimeoutSec         = 30
         SkipHttpErrorCheck = $true
     }
 
@@ -49,8 +49,8 @@ function Invoke-JsonRequest {
 
     return [PSCustomObject]@{
         StatusCode = [int]$response.StatusCode
-        Body = $parsedBody
-        RawBody = $response.Content
+        Body       = $parsedBody
+        RawBody    = $response.Content
     }
 }
 
@@ -77,7 +77,7 @@ try {
     $registrationSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
     $registerResponse = Invoke-JsonRequest -Method "POST" -Uri "$BaseUrl/api/auth/register" -Body @{
         username = $newUsername
-        email = $newEmail
+        email    = $newEmail
         fullname = "Role Smoke"
         password = $AdminPassword
     } -Session $registrationSession
@@ -149,17 +149,17 @@ try {
     }
 
     [PSCustomObject]@{
-        BaseUrl = $BaseUrl
-        NewUsername = $newUsername
-        PromotionStatus = $promotionResponse.StatusCode
-        PromotedUserAdminListStatus = $promotedAdminListResponse.StatusCode
-        SelfDemotionStatus = $selfDemotionResponse.StatusCode
-        SelfDemotionSessionIsAdmin = $sessionAfterSelfDemotion.Body.session.user.isAdmin
+        BaseUrl                         = $BaseUrl
+        NewUsername                     = $newUsername
+        PromotionStatus                 = $promotionResponse.StatusCode
+        PromotedUserAdminListStatus     = $promotedAdminListResponse.StatusCode
+        SelfDemotionStatus              = $selfDemotionResponse.StatusCode
+        SelfDemotionSessionIsAdmin      = $sessionAfterSelfDemotion.Body.session.user.isAdmin
         PostSelfDemotionAdminListStatus = $adminListAfterSelfDemotion.StatusCode
-        LastAdminProtectionStatus = $lastAdminProtectionResponse.StatusCode
-        LastAdminProtectionBody = if ($lastAdminProtectionResponse.Body -is [string]) { $lastAdminProtectionResponse.Body } else { $lastAdminProtectionResponse.RawBody }
-        RestoreAdminStatus = $restoreAdminResponse.StatusCode
-        CleanupDemotionStatus = $cleanupDemotionResponse.StatusCode
+        LastAdminProtectionStatus       = $lastAdminProtectionResponse.StatusCode
+        LastAdminProtectionBody         = if ($lastAdminProtectionResponse.Body -is [string]) { $lastAdminProtectionResponse.Body } else { $lastAdminProtectionResponse.RawBody }
+        RestoreAdminStatus              = $restoreAdminResponse.StatusCode
+        CleanupDemotionStatus           = $cleanupDemotionResponse.StatusCode
     } | Format-List
 }
 finally {
