@@ -131,7 +131,7 @@ Add only the minimum SQL stored procedures and repository contracts required. Ke
 - Added account repository primitives for get-by-id, update, and delete.
 - Implemented the matching custom identity-store methods.
 - Added `Account_GetById`, `Account_Update`, and `Account_Delete` stored procedures to both checked-in SQL init paths.
-- Validation succeeded with `dotnet build BlogLab.sln --disable-build-servers --artifacts-path .artifacts-prompt02`.
+- Validation succeeded with `dotnet build BlogLab.sln --disable-build-servers --artifacts-path tests/artifacts/.artifacts-prompt02`.
 
 ## Prompt 03 - Add a Safe Current-User Account API
 
@@ -159,7 +159,7 @@ Return the same core user shape already used by login/register, minus any unnece
 - Added authenticated `GET /api/account/me` and `PUT /api/account/me` routes.
 - Added `ApplicationUserUpdate` as the minimal request model for current-user profile edits.
 - The new current-user endpoints return the standard `ApplicationUser` shape with `Token = null` because profile read/update does not currently require token refresh.
-- Validation succeeded with `dotnet build BlogLab.sln --disable-build-servers --artifacts-path .artifacts-prompt03`.
+- Validation succeeded with `dotnet build BlogLab.sln --disable-build-servers --artifacts-path tests/artifacts/.artifacts-prompt03`.
 
 ## Prompt 04 - Add Next.js API Client and BFF Support for Current-User Profile Management
 
@@ -248,7 +248,7 @@ Return `403` for authenticated non-admin users.
 - Added `AdminUserSummary` as the lean response model for admin user review.
 - Extended the account repository with a paged list method backed by the new `Account_GetAllPaged` stored procedure.
 - Added `Account_GetAllPaged` to both `docker/db/init/01-schema.sql` and `docker/db/init/03-reconcile-schema.sql`.
-- Validation succeeded with `dotnet build BlogLab.sln --disable-build-servers --artifacts-path .artifacts-prompt06`.
+- Validation succeeded with `dotnet build BlogLab.sln --disable-build-servers --artifacts-path tests/artifacts/.artifacts-prompt06`.
 
 ## Prompt 07 - Surface Admin User Listing in the Next.js API Layer
 
@@ -335,7 +335,7 @@ Support toggling or explicitly setting `IsAdmin`. Add guardrails so an admin can
 - Added backend last-admin protection through the new `Account_CountAdmins` repository/SQL primitive.
 - Added `ApplicationUserRoleUpdate` as the minimal request model for admin role changes.
 - Hardened privileged backend admin checks to use current persisted admin state for admin blog review, admin user management, and admin delete-any-blog authorization instead of trusting stale JWT role claims alone.
-- Validation succeeded with `dotnet build BlogLab.sln --disable-build-servers --artifacts-path .artifacts-prompt09`.
+- Validation succeeded with `dotnet build BlogLab.sln --disable-build-servers --artifacts-path tests/artifacts/.artifacts-prompt09`.
 
 ## Prompt 10 - Wire Role Changes Through the Next.js BFF
 
@@ -422,7 +422,7 @@ Add guardrails for self-delete and last-admin delete behavior.
 - Added self-delete and last-admin guardrails in the service before any destructive work begins.
 - Implemented ordered dependent-row deletion in both `docker/db/init/01-schema.sql` and `docker/db/init/03-reconcile-schema.sql`, covering user likes, user-owned/blog-owned comment trees, user-owned blogs, photos, and finally the user row.
 - Moved remote photo cleanup to run after successful relational deletion and downgraded Cloudinary cleanup failures to warning logs so the database delete path remains authoritative.
-- Validation succeeded with `dotnet build BlogLab.sln --disable-build-servers --artifacts-path .artifacts-prompt12`.
+- Validation succeeded with `dotnet build BlogLab.sln --disable-build-servers --artifacts-path tests/artifacts/.artifacts-prompt12`.
 
 ## Prompt 13 - Add the Admin User-Deletion Endpoint
 
@@ -445,7 +445,7 @@ Expose the deletion orchestration through a dedicated admin-only backend endpoin
 - Added admin-only `DELETE /api/admin/users/{applicationUserId}` to `AdminUserEndpointRouteBuilderExtensions`.
 - The endpoint now delegates to `IAdminUserDeletionService` and returns the compact `ApplicationUserDeletionResult` contract directly on success.
 - Added focused destructive smoke coverage in `scripts/smoke-test-admin-user-delete.ps1`, which creates temporary users and dependent artifacts, deletes the target as admin, verifies cleanup, and removes the remaining helper user.
-- Validation succeeded with `dotnet build BlogLab.sln --disable-build-servers --artifacts-path .artifacts-prompt13`.
+- Validation succeeded with `dotnet build BlogLab.sln --disable-build-servers --artifacts-path tests/artifacts/.artifacts-prompt13`.
 - Live smoke validation succeeded against a host-run API on `http://127.0.0.1:5002` using `pwsh ./scripts/smoke-test-admin-user-delete.ps1 -BaseUrl 'http://127.0.0.1:5002' -SkipPhotoUpload`; full photo-covered runtime validation is currently blocked by invalid local Cloudinary credentials.
 
 ## Prompt 14 - Wire User Deletion Through the Next.js BFF
@@ -482,6 +482,22 @@ Extend `/admin/users` with a high-friction delete flow only after the backend or
 - `/admin/users` supports a deliberate, high-friction delete flow for administrators.
 - Destructive behavior is obvious, guarded, and consistent with backend protections.
 
+### Lessons learned after completion
+
+- Prompt 15 worked best as a focused client component inside the existing server-rendered admin users page. The page can stay responsible for authenticated data loading, while the destructive mutation lives in an isolated button/dialog flow with its own pending state and toast handling.
+- A typed-confirmation requirement is enough friction for this MVP when the confirmation token is the target username and the dialog spells out the dependent-artifact cleanup. That makes the destructive scope obvious without introducing a heavier multi-step wizard.
+- Delete UX needed its own helper layer for copy shaping and backend-error normalization. Keeping that logic in `admin-delete.ts` and `admin-delete-client.ts` prevents the page component from absorbing destructive-action branching and makes protected-case messages such as self-delete and last-admin failures easier to keep consistent.
+- The safest UI behavior is to block obviously invalid cases before the request is sent while still relying on backend guardrails as the authority. In this prompt, self-delete stays disabled in the UI, and backend `400`/`403` responses still flow through to the toast path for protected cases that only the server can decide conclusively.
+- Prompt 15 did not need bespoke page invalidation logic in the browser. A success toast plus `router.refresh()` is sufficient because Prompt 14 already revalidates `/admin/users` in the BFF route after a successful delete.
+
+### Completion notes
+
+- Added `AdminUserDeleteButton` as a high-friction delete control with a destructive confirmation dialog, typed username confirmation, pending state, and success/error toast handling.
+- Added `admin-delete.ts` and `admin-delete-client.ts` to isolate delete copy, backend error normalization, and the browser-side call to the existing `/api/admin/users/[applicationUserId]` BFF route.
+- Updated `/admin/users` to present the delete action in a clearly separated destructive section on each user card, alongside explicit copy about dependent-artifact cleanup and backend protections.
+- The current account cannot be deleted from this UI path; the delete control stays disabled for the signed-in admin while the backend remains authoritative for self-delete and last-admin protection.
+- Validation succeeded with `npm run test -- src/lib/users/admin-delete.test.ts src/app/api/admin/users/[applicationUserId]/route.test.ts src/lib/api/factory.test.ts` and `npm run build` in `bloglab-ui-next`.
+
 ## Prompt 16 - Add Targeted Tests for Account and Admin User Management
 
 Add focused tests around the highest-risk behavior:
@@ -500,6 +516,21 @@ Prefer narrow, deterministic coverage first.
 - The highest-risk backend and UI behaviors have focused automated coverage.
 - Regressions around auth, role protection, and destructive mutations become easier to catch early.
 
+### Lessons learned after completion
+
+- Prompt 16 was most effective when it extended the test seams that already existed instead of introducing a full new integration harness. The Next.js route-handler tests already covered profile/account and admin-user mutations well, so the main gaps were server-page guard behavior and backend deletion-service guardrails.
+- The backend did not yet have a reusable web-host test setup, but `AdminUserDeletionService` was already a strong seam for high-risk coverage. A small `BlogLab.Services.Tests` project was enough to lock down admin authorization, self-delete protection, last-admin protection, and the post-delete remote-photo cleanup loop.
+- Server-rendered Next.js pages can be tested narrowly with `renderToStaticMarkup` and mocked client components. That kept Prompt 16 focused on route-guard and protected-page behavior for `/me/profile` and `/admin/users` without pulling in a browser-oriented component test framework.
+- Existing route-handler tests remain the main automated coverage for current-user profile read/update, admin-only user-list access, role changes, and last-admin error passthrough. Prompt 16 complements those tests rather than replacing them.
+- The highest remaining runtime-sensitive branch is still remote Cloudinary cleanup during user deletion. Automated backend tests now cover the orchestration contract and photo-public-id filtering, while full end-to-end media cleanup still depends on valid local Cloudinary credentials.
+
+### Completion notes
+
+- Added `BlogLab.Services.Tests` with focused `AdminUserDeletionService` coverage for unauthorized delete attempts, self-delete protection, last-admin protection, and successful dependency cleanup plus remote-photo deletion filtering.
+- Added Next.js server-page tests for `/me/profile` and `/admin/users`, covering auth-guard behavior plus successful protected rendering for signed-in users/admins.
+- Kept the existing focused Next.js route-handler and helper tests as the primary automated coverage for `/api/account/me`, `/api/admin/users`, role changes, and delete passthrough behavior.
+- Validation succeeded with `dotnet test .\BlogLab.Services.Tests\BlogLab.Services.Tests.csproj --disable-build-servers --artifacts-path tests/artifacts/.artifacts-tests-prompt16` and the focused Next.js Vitest suite plus `npm run build` in `bloglab-ui-next`.
+
 ## Prompt 17 - Update Documentation and Local Admin Workflow Notes
 
 Update the repository docs with the minimum guidance needed to run and verify the new profile and admin user-management features locally. Include:
@@ -513,6 +544,19 @@ Update the repository docs with the minimum guidance needed to run and verify th
 
 - Local verification steps for profile and admin user management are documented.
 - Future contributors can run, test, and reason about the feature without reverse-engineering the implementation.
+
+### Lessons learned after completion
+
+- Prompt 17 needed updates in contributor-facing operational docs, not just in the prompt tracker. The highest-value places were `docs/docker-local-development.md` for full-stack workflows and `bloglab-ui-next/README.md` for the alternate UI’s route surface and focused test commands.
+- Local admin guidance is clearer when it starts from the seeded default admin account and then explains the manual promotion fallback. That avoids unnecessary SQL edits for the common local path while still documenting how persisted environments can recover.
+- Contributor docs need to separate the self-service and admin surfaces explicitly: `/me/profile` is user-scoped, while `/admin/users` and `/admin/blogs` are privileged workspaces with different risks and verification steps.
+- The first-release limitations are important operational knowledge, not just planning notes. Username edits remaining read-only, deferred password/email flows, and Cloudinary-dependent photo cleanup verification all belong in the local workflow docs so later contributors do not infer missing behavior as regressions.
+
+### Completion notes
+
+- Updated `docs/docker-local-development.md` with admin/profile route guidance, a local verification checklist, focused automated test commands, and current MVP limitations.
+- Updated `bloglab-ui-next/README.md` with the `/me/profile` and `/admin/users` surfaces, seeded-admin guidance, destructive delete behavior notes, and focused verification commands.
+- Kept the prompt tracker aligned with the actual repository docs so Prompt 17 now records the contributor-facing documentation outcome rather than only implementation history.
 
 ## Recommended Stop Points
 

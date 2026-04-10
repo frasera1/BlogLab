@@ -187,8 +187,34 @@ WHERE Username = 'your-username';
 After changing admin state, sign out and sign back in so a fresh JWT/session is
 issued.
 
-The admin feature is intentionally limited to the separate `/admin/blogs`
-workspace and only supports viewing and deleting blogs across users.
+The admin feature currently spans two dedicated workspaces:
+
+- `/admin/blogs` for cross-user blog review and delete actions
+- `/admin/users` for user review, admin role changes, and high-friction user deletion
+
+Self-service profile management lives separately at `/me/profile` for the signed-in user only.
+
+## Admin and profile verification checklist
+
+After the API and Next.js app are running locally:
+
+1. Sign in as `adminlab` / `Admin12345!` or another promoted admin account.
+2. Open `http://localhost:3000/me/profile` for a host-run Next.js app, or `http://localhost:3001/me/profile` for the Dockerized Next.js app.
+3. Verify that `fullname` and `email` can be updated from `/me/profile` and that username remains read-only in the MVP flow.
+4. Open `/admin/users` and verify the paged user list loads only for admins.
+5. Verify role changes from `/admin/users`, including the backend-enforced last-admin protection path.
+6. Verify the user delete dialog requires typed username confirmation and refreshes the list after success.
+
+## Focused automated coverage
+
+- Backend deletion guardrails and orchestration: `dotnet test .\BlogLab.Services.Tests\BlogLab.Services.Tests.csproj --disable-build-servers --artifacts-path tests/artifacts/.artifacts-tests-prompt16`
+- Next.js account/admin route and page coverage: `cd bloglab-ui-next` then `npm run test -- src/app/me/profile/page.test.ts src/app/admin/users/page.test.ts src/app/api/account/me/route.test.ts src/app/api/admin/users/route.test.ts src/app/api/admin/users/[applicationUserId]/role/route.test.ts src/app/api/admin/users/[applicationUserId]/route.test.ts src/lib/account/profile.test.ts src/lib/account/profile-client.test.ts src/lib/auth/session.test.ts src/lib/users/admin-role.test.ts src/lib/users/admin-delete.test.ts`
+
+## MVP limitations for this slice
+
+- `/me/profile` updates only `fullname` and `email`; username remains read-only.
+- Password reset, email verification, audit logging, bulk moderation, and soft-delete/recovery are still deferred.
+- Full runtime verification of remote photo cleanup during admin user deletion still depends on valid Cloudinary credentials. The local destructive smoke test can skip photo upload when those credentials are not available.
 
 ## Optional Ollama setup
 
@@ -212,10 +238,10 @@ The Ollama integration is only needed for the Next.js AI draft flow.
 1. Keep the Angular UI available during rollout and treat the Dockerized Next.js
   app as an alternate UI on `http://localhost:3001`.
 2. Bootstrap admin access only for a small number of known test accounts.
-3. Keep admin work inside `/admin/blogs`, separate from the normal author
-   workspace.
-4. Keep the feature limited to review + delete only. Do not expand to cross-user
-   create or edit flows without a new scoped change.
+3. Keep admin work inside `/admin/blogs` and `/admin/users`, separate from the normal author
+  workspace and `/me/profile` self-service flow.
+4. Keep the feature limited to review, role changes, and delete only. Do not expand to cross-user
+  create or edit flows without a new scoped change.
 5. If issues appear, remove admin access from the affected account and continue
    using the existing non-admin flows while investigating.
 
