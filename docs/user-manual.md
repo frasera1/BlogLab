@@ -28,7 +28,30 @@ BlogLab currently has three practical access levels:
 
 1. Start the local stack if it is not already running.
 2. Open the Next.js UI at `http://localhost:3001` for Docker or `http://localhost:3000` for a host-run UI.
-3. Land on the homepage and use the main navigation to move into public, author, or admin areas.
+3. Confirm the browser tab shows the BlogLab favicon.
+4. Land on the homepage and use the shared public header to move into public, author, or admin areas.
+
+### Understand the shared public shell
+
+The public-facing routes now share a consistent site shell.
+
+On public pages such as `/`, `/blogs`, and `/blogs/[blogId]`, expect to see:
+
+- a sticky header with the BlogLab logo
+- primary public navigation for `Home` and `Blogs`
+- authentication actions in the header
+- a shared footer with public and session-aware recovery links
+
+The footer is intentionally lighter than the header. It helps you orient yourself without duplicating the full set of account actions.
+
+### Use the theme toggle
+
+The Next.js UI includes a light/dark theme toggle in the public header.
+
+- on desktop, it appears in the header utility area
+- on mobile, it appears inside the expanded menu panel
+
+Your theme choice is remembered locally in the browser.
 
 ### Create an account
 
@@ -51,7 +74,14 @@ Use this account when you need to test the admin workspaces.
 
 ### View the homepage
 
-The homepage introduces the application and provides access to sign-in, registration, and the public feed.
+The homepage introduces the application and now sits inside the shared public shell.
+
+From the homepage you can:
+
+- use the header logo to return to `/`
+- open the public blog feed from the header or page calls to action
+- sign in or register without leaving the page
+- move into your writing workspace after authentication
 
 ### Browse blogs
 
@@ -66,6 +96,31 @@ The homepage introduces the application and provides access to sign-in, registra
 3. Review the associated comments on the same page.
 
 Depending on the current UI state and whether you are signed in, interactive actions such as commenting or liking may require authentication.
+
+### Use the public header and footer
+
+Across public routes, the shared chrome behaves as follows:
+
+- signed-out users see the BlogLab logo, `Home`, `Blogs`, and `Login` and `Register` actions
+- signed-in authors see workspace shortcuts for `My posts`, `My media`, and `Profile`
+- signed-in admins also see `Admin users` and `Admin blogs`
+- the footer always keeps `Explore` links visible and only expands `Workspace` and `Admin` sections when your session allows them
+
+This keeps public browsing simple while still giving signed-in users a fast route back to their work.
+
+### Use the mobile menu
+
+On smaller screens, the public header collapses into a compact layout.
+
+Expected mobile behavior:
+
+- the BlogLab logo remains visible
+- the menu button opens the main navigation panel
+- `Home` and `Blogs` appear at the top of the panel
+- workspace and admin links appear inside the panel only when you are signed in
+- logout remains separated from the navigation links
+
+If the menu is open, page scrolling is intentionally locked until you close it.
 
 ## Signed-In Author Features
 
@@ -183,6 +238,10 @@ Use these routes as the primary map for the current Next.js UI:
 - `/admin/blogs` — admin blog workspace
 - `/admin/users` — admin user workspace
 
+The shared public shell applies to `/`, `/blogs`, and `/blogs/[blogId]`.
+
+The author and admin workspaces keep their own focused shells and do not reuse the public header and footer.
+
 ## Known Limitations
 
 The current MVP intentionally leaves some features out of scope:
@@ -198,6 +257,18 @@ The current MVP intentionally leaves some features out of scope:
 These omissions are expected and should not be treated as defects in the current release unless the product scope changes.
 
 ## Troubleshooting
+
+### I do not see the expected logo, header, or footer on public pages
+
+Make sure you are using the Next.js UI rather than the legacy Angular UI. The shared public shell is part of `bloglab-ui-next`.
+
+### The mobile menu or theme toggle does not appear where I expect
+
+On desktop, the theme toggle is in the header utility area. On smaller screens, it moves into the expanded mobile menu panel.
+
+### The browser tab icon did not update
+
+Refresh the page fully. If the browser still shows an old icon, clear the tab or browser cache and reopen the Next.js UI.
 
 ### I can browse the site but cannot open `/me/*`
 
