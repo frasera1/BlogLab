@@ -440,6 +440,19 @@ Manual verification checklist:
 - footer renders across public pages
 - mobile widths remain usable
 
+### Prompt 09 lessons learned after completion
+
+- The most durable Prompt 09 coverage stayed close to shell boundaries rather than deep page snapshots. Server-rendered tests for the public header, footer, and route-group layout were enough to lock in the new public chrome without making the suite brittle to unrelated content changes inside individual pages.
+- Header auth-state regressions were best covered as three explicit states: signed out, signed in non-admin, and signed in admin. That kept the role-sensitive navigation contract readable and ensured admin-only links remain opt-in rather than accidentally leaking into the public surface.
+- The mobile menu needed one focused jsdom interaction test instead of broad responsive snapshots. Verifying open and close behavior, session-aware menu content, and body scroll locking captured the material client-side risk introduced by the collapsed navigation pattern.
+
+### Prompt 09 completion notes
+
+- Added focused regression tests for the public header covering signed-out, signed-in, and admin auth states.
+- Added focused regression tests for the public footer so signed-out fallback content and signed-in workspace and admin sections stay intentional.
+- Added a jsdom interaction test for the mobile navigation menu to verify session-aware links render when expanded and page scroll locking is restored when the menu closes.
+- Validation succeeded with targeted Vitest coverage for the public layout, header, footer, and mobile-menu tests.
+
 ## Open implementation decisions
 
 These should be resolved before code starts or in Prompt 01:
