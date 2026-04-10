@@ -159,6 +159,11 @@ For the first implementation pass:
 
 Use the following prompts in order. Each one is intentionally narrow and should be completed and reviewed before moving to the next.
 
+Documentation rule for the full sequence:
+
+- after each prompt is completed, record a short `Lessons learned after completion` section before starting the next prompt
+- keep those lessons concrete and implementation-specific so later prompts build on verified decisions rather than assumptions
+
 ### Prompt 01 - Create the public route-group shell strategy
 
 Implement the shell architecture using a public-only route group instead of the root layout.
@@ -176,6 +181,20 @@ Success criteria:
 - author/admin workspace pages do not end up with duplicated nav bars or visually noisy stacked headers
 - the chosen structure makes it obvious that public browsing and protected workspaces are intentionally different shells
 
+### Prompt 02 lessons learned after completion
+
+- A public-only route group was the cleaner first move than changing the root layout because it preserved the existing provider setup while creating a clear place for shared browse-page chrome.
+- Using `src/app/(public)/...` keeps public URLs unchanged and makes the shell boundary explicit in the file system, which lowers the risk of accidental coupling with `/me/*` and `/admin/*`.
+- Adding a minimal `src/app/(public)/layout.tsx` now is useful even before header/footer code exists because it establishes the architectural seam Prompt 02 and Prompt 03 will build on.
+- The author and admin areas already have strong local shells, so keeping them out of the new route group avoids duplicated navigation and keeps Prompt 01 intentionally low-risk.
+
+### Prompt 02 completion notes
+
+- Moved `/`, `/blogs`, and `/blogs/[blogId]` into `src/app/(public)/...` without changing route URLs.
+- Added `src/app/(public)/layout.tsx` as the public-shell boundary while keeping `src/app/layout.tsx` provider-only.
+- Updated this plan to record `(public)` as the chosen route-group naming convention.
+- Verified the reorganization with `npm run build` in `bloglab-ui-next`.
+
 ### Prompt 02 - Extract reusable auth actions for site chrome
 
 Refactor the existing homepage auth controls in `src/components/auth/auth-shell.tsx` into a reusable header-friendly component or components.
@@ -189,6 +208,20 @@ Success criteria:
 
 - sign-in, registration, and sign-out continue to work
 - the homepage no longer owns the only copy of auth-entry UI logic
+
+### Lessons learned after completion
+
+- The safest Prompt 02 split was to extract both a reusable control component and a shared client hook. The control component alone was not enough because homepage CTA buttons outside the header still need to open the same auth dialog state.
+- Keeping `AuthDialog` owned by the page-level shell while moving login/register/logout rendering into a reusable `SiteAuthControls` component preserved flexibility for later header work without hiding dialog state inside the control component.
+- A small pure helper layer for site-chrome auth concerns was useful. `getSiteWorkspaceLinks` and `getSiteDisplayName` now give the future shared header a stable source of truth for auth-aware labels and shortcuts, and they were easy to validate with focused Vitest coverage.
+- After the earlier route-group move, Next.js build validation needed a clean `.next` directory because stale generated validator output under `.next/dev` can survive structural route changes and produce misleading type errors unrelated to current source files.
+
+### Completion notes
+
+- Added reusable site-chrome auth helpers in `src/lib/auth/site-chrome.ts` plus focused tests in `src/lib/auth/site-chrome.test.ts`.
+- Added `SiteAuthControls` as the reusable header-friendly auth control component and `useSiteAuthSession` as the shared client hook for dialog/session/logout state.
+- Refactored the homepage `AuthShell` to use the extracted auth helpers, hook, and reusable control component while keeping homepage CTA buttons connected to the same auth dialog flow.
+- Validation succeeded with `npm run test -- src/lib/auth/site-chrome.test.ts` and `npm run build` in `bloglab-ui-next` after clearing stale `.next` output generated before the route-group restructure.
 
 ### Prompt 03 - Build the shared site header
 
@@ -215,6 +248,20 @@ Success criteria:
 - navigation reflects auth state cleanly
 - signed-in and signed-out header states are both intentional, not improvised
 
+### Prompt 03 lessons learned after completion
+
+- The header needed to own `AuthDialog` directly rather than relying on `SiteAuthControls` to do it, because Prompt 02 intentionally moved the dialog/session state into shared page-or-shell-level ownership. That kept the extracted controls reusable while still making the standalone header fully functional.
+- A small shared navigation definition in `src/lib/site/navigation.ts` was worth adding early. It gives Prompt 04 and Prompt 05 a single source of truth for the stable public nav instead of duplicating `Home` and `Blogs` link decisions in multiple components.
+- Building the desktop-capable header before the mobile menu pass kept Prompt 03 focused. The current header already stacks and wraps responsibly, while Prompt 04 can now concentrate specifically on collapsed mobile behavior instead of also inventing the visual language.
+- The strongest low-risk boundary for this prompt was to implement the header component without attaching it to the public layout yet. That let the component and its auth behavior validate cleanly before any browse-page rollout changes land in Prompt 06.
+
+### Prompt 03 completion notes
+
+- Added shared public navigation definitions in `src/lib/site/navigation.ts`.
+- Added `src/components/site/public-site-header.tsx` with the BlogLab logo, primary public nav, auth-aware utility controls, and theme toggle.
+- Wired the shared header component to the extracted auth/session hook plus `AuthDialog`, so login/register/logout flows remain functional inside the header itself.
+- Validation succeeded with `npm run build` in `bloglab-ui-next`.
+
 ### Prompt 04 - Add responsive mobile navigation behavior
 
 Extend the shared header with a mobile-friendly nav pattern.
@@ -236,6 +283,20 @@ Success criteria:
 - layout remains usable around common small-screen widths
 - nav links do not overlap the logo or action controls
 - auth actions remain obvious on mobile
+
+### Prompt 04 lessons learned after completion
+
+- The mobile header needed a more compact brand treatment than desktop. Keeping the logo visible while hiding the tagline on the smallest widths was the simplest way to protect space for the menu trigger and the highest-priority auth action.
+- Prompt 04 worked best as a lightweight menu-panel pattern inside the existing header component instead of introducing a full drawer dependency. The existing editorial card styling already gave the panel enough visual separation for a first pass.
+- Locking page scroll while the mobile menu is open matters for usability on long public pages. Without that, the sticky header and expanded menu can feel unstable during touch scrolling.
+- Reusing the same public and workspace link sources inside the mobile menu keeps the responsive state aligned with desktop behavior and avoids a second navigation definition drifting later.
+
+### Prompt 04 completion notes
+
+- Extended `PublicSiteHeader` with a collapsed mobile menu that exposes public navigation, session-aware workspace links, theme toggle access, and login/register/logout actions.
+- Added mobile-specific brand compaction so the logo stays visible without crowding the header controls on narrow widths.
+- Added page-scroll locking while the mobile menu is open so the panel behaves predictably on long pages.
+- Validation succeeded with `npm run build` in `bloglab-ui-next`.
 
 ### Prompt 05 - Build the shared footer
 
@@ -259,6 +320,19 @@ Success criteria:
 - link groups stack cleanly on mobile
 - spacing works on both long and short pages
 
+### Prompt 05 lessons learned after completion
+
+- The footer worked best as a public-shell component that stays lighter than the header. Explore links are always visible, while workspace and admin sections only expand when the session actually makes them relevant.
+- Signed-out footer behavior is more usable when it avoids duplicating login and register buttons. Keeping auth entry in the header preserves a single obvious action path on mobile instead of turning the footer into a second control surface.
+- Reusing the same shared public-nav and workspace-link helpers in the footer prevents header/footer drift and keeps Prompt 05 aligned with the navigation rules already locked earlier in this plan.
+
+### Prompt 05 completion notes
+
+- Added a session-aware shared footer component for the public shell with Explore, Workspace, and Admin sections when relevant.
+- Kept the signed-out footer intentionally lighter by replacing workspace/admin links with concise guidance instead of duplicating header auth actions.
+- Implemented responsive stacked footer groupings plus a persistent copyright/status row.
+- Validation succeeded with `npm run build` in `bloglab-ui-next`.
+
 ### Prompt 06 - Apply the public route-group shell to browse pages
 
 Integrate the shared header and footer through the new public route-group layout.
@@ -274,6 +348,20 @@ Success criteria:
 - the homepage no longer needs to fake a site header inside its own content block
 - route transitions keep a stable look and feel
 
+### Prompt 06 lessons learned after completion
+
+- Prompt 06 needed a shared client-side shell state rather than separate header and homepage auth state. Without that, signing in from the shared header would have left homepage CTA content stale until a refresh.
+- The cleanest attachment point was the existing `(public)` route-group layout. That kept the root layout provider-only and preserved the intentional separation between browse pages and the `/me/*` and `/admin/*` workspaces.
+- After the shared shell took ownership of the site chrome, the public pages needed to drop their own `min-h-screen` wrappers so the footer could sit naturally at the bottom of the route-group layout instead of below an extra full-viewport page block.
+
+### Prompt 06 completion notes
+
+- Turned `src/app/(public)/layout.tsx` into the real shared browse-page shell by loading the current session and wrapping public pages in a shared public-site shell component.
+- Added a shared public-shell auth context so the header, homepage CTA surface, and footer all stay in sync after login/logout without waiting for a refresh.
+- Removed the homepage-owned top chrome and let the shared header/footer frame `/`, `/blogs`, and `/blogs/[blogId]` consistently.
+- Adjusted public page wrappers so the shell owns full-height layout behavior cleanly.
+- Validation succeeded with `npm run build` in `bloglab-ui-next`.
+
 ### Prompt 07 - Reconcile author/admin workspace behavior
 
 Review `/me/*` and `/admin/*` after the public shell is introduced and confirm that they should:
@@ -286,6 +374,19 @@ Success criteria:
 
 - no duplicated navigation layers
 - admin and author pages still feel purpose-built for work, not just browsing
+
+### Prompt 07 lessons learned after completion
+
+- The existing author and admin shells were already the right abstraction boundary for Prompt 07. They stay outside the `(public)` route group and keep their own focused navigation, summary areas, and guard states.
+- A lightweight link back to public browsing was already present in the workspace shells and guard states through `Home` and `Public feed`, so Prompt 07 did not need new chrome. Adding the public header/footer on top would have created exactly the duplicated navigation this prompt was meant to avoid.
+- The most useful change for this prompt was verification rather than redesign: focused shell tests now lock in that author/admin workspaces keep distinct local nav while still offering a clear path back to the public surface.
+
+### Prompt 07 completion notes
+
+- Confirmed `/me/*` and `/admin/*` remain outside the `(public)` route-group shell and therefore do not inherit the shared public header/footer.
+- Kept the existing focused author/admin shells unchanged because they already provide lightweight public-browsing links without duplicating the public-shell navigation.
+- Added focused tests for `AuthorPageShell`, `AuthorAuthGuard`, `AdminPageShell`, `AdminAuthGuard`, and `AdminAccessDenied` to lock in the current separation and browse-back affordances.
+- Validation succeeded with focused Vitest coverage for the author/admin shell tests and `npm run build` in `bloglab-ui-next`.
 
 ### Prompt 08 - Mobile and responsive pass
 
@@ -306,6 +407,20 @@ Review checklist:
 - hero sections do not feel crowded under the new header
 - action buttons remain reachable and readable
 - typography and spacing still feel deliberate on smaller screens
+
+### Prompt 08 lessons learned after completion
+
+- The public header already had the right collapsed-menu architecture, so Prompt 08 was mostly about density control rather than a new navigation pattern. Shrinking the mobile brand block and slightly tightening the menu panel padding protected the logo/menu row without weakening the editorial look.
+- The public pages needed more top breathing room under the shared sticky header. A small increase to route-level top padding plus slightly reduced mobile display sizes kept the homepage, feed, and story detail heroes from feeling crowded.
+- The main usability gap on small screens was action density rather than content structure. Converting key CTA rows and pagination controls to full-width-first mobile buttons made profile, feed, story, and admin actions easier to reach without changing route behavior.
+- The author and admin workspace shells were already structurally sound for mobile once their nav pills stayed non-wrapping and horizontally scrollable. Prompt 08 only needed targeted shell/title/action refinements rather than a shell redesign.
+
+### Prompt 08 completion notes
+
+- Tightened the shared public header and footer for smaller screens with a lighter mobile brand treatment, roomier full-width footer links, and preserved collapsed-menu behavior.
+- Added more breathing room and better button sizing across `/`, `/blogs`, and `/blogs/[blogId]`, including less crowded mobile hero typography and more reachable CTA/pagination controls.
+- Refined `/me/profile` and `/admin/users` small-screen behavior by improving shell spacing, keeping nav pills readable in horizontal scroll, widening utility controls, and making admin mutation/status blocks stack more cleanly.
+- Validation succeeded with focused Vitest coverage for the public/layout and author/admin shell tests plus `npm run build` in `bloglab-ui-next`.
 
 ### Prompt 09 - Validation and regression coverage
 
